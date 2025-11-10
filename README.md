@@ -59,14 +59,12 @@ fintech-cb-pipeline/
 │
 ├── docs/                    # 모든 설계 문서 (Wiki 역할)
 │   ├── 01_architecture.md   # 전체 아키텍처 다이어그램 (Mermaid)
-│   ├── 02_dwh_schema.md     # (P1→P2) DWH 스키마 약속
-│   └── 03_datamart_schema.md  # (P2→P3) Data Mart 스키마 약속
+│   ├── 02_dwh_schema.md     # DWH 스키마 약속
+│   └── 03_datamart_schema.md  # Data Mart 스키마 약속
 │
 ├── config/                  # 환경 설정 (DB, Spark, HDFS 연결 정보)
 │
-├── data/                    # 로컬 데이터 (Git ignore)
-│   ├── raw/                 # 원본 CSV
-│   └── mock/                # P3 API 개발용 가짜 데이터
+├── data/                    # 로컬 데이터 
 │
 ├── etl/                     # 데이터 파이프라인 
 │   ├── lake_to_dwh/         # DWH 구축 (정제, 정규화)
@@ -83,12 +81,12 @@ fintech-cb-pipeline/
 │   ├── train.py
 │   └── predict.py
 │
-├── shared/                  # 🔗 전역 공통 모듈 (로거, 설정 로더 등)
+├── shared/                  # 전역 공통 모듈 (로거, 설정 로더 등)
 │
-├── tests/                   # 🧪 테스트 코드
+├── tests/                   # 테스트 코드
 │   ├── test_etl/
 │   └── test_service/
 │
-└── notebooks/               # 📓 실험실 (EDA, 모델 프로토타이핑)
+└── notebooks/               # 실험실 (EDA, 모델 프로토타이핑)
     ├── eda/
     └── experiments/
