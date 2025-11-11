@@ -1,0 +1,10 @@
+pandas
+numpy
+matplotlib
+seaborn
+openpyxl
+pyyaml
+sqlalchemy
+psycopg2
+dotenv
+pyyaml
