@@ -1,27 +1,22 @@
 from sqlalchemy import create_engine, text
-import os
-from dotenv import load_dotenv
 import pandas as pd
 import yaml
+import sys
+from pathlib import Path
 
+# 프로젝트 루트를 Python 경로에 추가
+project_root = Path(__file__).resolve().parents[3]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from shared.config_loader import DB_URL
 
 
 def get_db_engine():
     """
-    .env 파일에서 접속 정보를 로드하여 SQLAlchemy 엔진을 생성하고 반환합니다.
+    shared/config_loader.py에서 DB_URL을 가져와 SQLAlchemy 엔진을 생성하고 반환합니다.
     """
-    load_dotenv()
-    DB_USER = os.getenv('DB_USER')
-    DB_PASSWORD = os.getenv('DB_PASSWORD')
-    DB_HOST = os.getenv('DB_HOST')
-    DB_PORT = os.getenv('DB_PORT')
-    DB_NAME = os.getenv('DB_NAME')
-    
-    if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
-        raise ValueError("데이터베이스 접속 정보가 .env 파일에 없습니다.")
-        
-    db_url = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-    return create_engine(db_url)
+    return create_engine(DB_URL)
 
 
 
@@ -52,6 +47,7 @@ def create_schema(sql_file_path):
 def load_data(df, table_name):
     """
     변환된 데이터프레임을 PostgreSQL에 적재합니다.
+    table_name: 'schema.table' 또는 'table' 형식
     """
     if df.empty:
         print(f"적재할 데이터가 없습니다: {table_name}")
@@ -59,11 +55,19 @@ def load_data(df, table_name):
 
     engine = get_db_engine()
     print(f"PostgreSQL에 테이블 '{table_name}' 데이터 적재 시작...")
+
+    # schema.table 분리
+    if '.' in table_name:
+        schema, table = table_name.split('.', 1)
+    else:
+        schema = 'public'
+        table = table_name
+
     try:
         with engine.begin() as connection:
-            connection.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE;"))
-            df.to_sql(table_name, connection, if_exists='append', index=False)
-        print(f"테이블 '{table_name}' 데이터 적재 완료. {len(df)} rows.")
+            connection.execute(text(f"TRUNCATE TABLE {schema}.{table} RESTART IDENTITY CASCADE;"))
+            df.to_sql(table, connection, schema=schema, if_exists='append', index=False)
+        print(f"테이블 '{schema}.{table}' 데이터 적재 완료. {len(df)} rows.")
     except Exception as e:
         print(f"테이블 '{table_name}' 데이터 적재 중 오류 발생: {e}")
 
@@ -105,11 +109,17 @@ def load_table_from_db(table_name, yaml_path):
     # ============================================================
     # 3. PostgreSQL에서 데이터 로드
 
-    print(f"\nPostgreSQL에서 '{table_name}' 테이블 로드 중...")
+    # schema.table 분리하여 쿼리 생성
+    if '.' in table_name:
+        full_table_name = table_name
+    else:
+        full_table_name = f"public.{table_name}"
+
+    print(f"\nPostgreSQL에서 '{full_table_name}' 테이블 로드 중...")
 
     try:
         engine = get_db_engine()
-        df = pd.read_sql(f"SELECT * FROM {table_name}", engine)
+        df = pd.read_sql(f"SELECT * FROM {full_table_name}", engine)
         
         print(f"✓ 테이블 로드 완료 ({len(df):,}행, {len(df.columns)}개 컬럼)")
         

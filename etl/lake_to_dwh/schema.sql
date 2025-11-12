@@ -1,8 +1,13 @@
 -- 데이터 웨어하우스 스키마 (PostgreSQL)
 
+-- 스키마 생성
+CREATE SCHEMA IF NOT EXISTS lake;
+CREATE SCHEMA IF NOT EXISTS dwh;
+CREATE SCHEMA IF NOT EXISTS marts;
+
 -- Dimension Tables
 -- 회사의 정적 정보를 저장하는 차원 테이블
-CREATE TABLE IF NOT EXISTS dim_company (
+CREATE TABLE IF NOT EXISTS dwh.dim_company (
     COMPANY_SK SERIAL PRIMARY KEY, 
     COMPANY_ID VARCHAR(255),
     FNDT_DT DATE,
@@ -17,15 +22,22 @@ CREATE TABLE IF NOT EXISTS dim_company (
 );
 
 -- 시간 정보를 저장하는 차원 테이블
-CREATE TABLE IF NOT EXISTS dim_time (
+CREATE TABLE IF NOT EXISTS dwh.dim_time (
     TIME_SK SERIAL PRIMARY KEY,
     BS_DT DATE NOT NULL
+);
+
+-- 업종 정보를 저장하는 차원 테이블
+CREATE TABLE IF NOT EXISTS dwh.dim_industry (
+    INDUSTRY_SK SERIAL PRIMARY KEY,
+    INDUSTRY_CODE VARCHAR(10) NOT NULL UNIQUE,
+    INDUSTRY_NAME VARCHAR(255) NOT NULL
 );
 
 
 -- Fact Tables
 -- 재무제표 데이터를 저장하는 팩트 테이블
-CREATE TABLE IF NOT EXISTS fact_financial_statement (
+CREATE TABLE IF NOT EXISTS dwh.fact_financial_statement (
     COMPANY_SK INTEGER,
     TIME_SK INTEGER,
     FN1_1 NUMERIC,
@@ -90,12 +102,12 @@ CREATE TABLE IF NOT EXISTS fact_financial_statement (
     FN3_11 NUMERIC,
     FN3_11_1 NUMERIC,
     PRIMARY KEY (COMPANY_SK, TIME_SK),
-    FOREIGN KEY (COMPANY_SK) REFERENCES dim_company(COMPANY_SK),
-    FOREIGN KEY (TIME_SK) REFERENCES dim_time(TIME_SK)
+    FOREIGN KEY (COMPANY_SK) REFERENCES dwh.dim_company(COMPANY_SK),
+    FOREIGN KEY (TIME_SK) REFERENCES dwh.dim_time(TIME_SK)
 );
 
 -- 재무비율 데이터를 저장하는 팩트 테이블
-CREATE TABLE IF NOT EXISTS fact_financial_ratios (
+CREATE TABLE IF NOT EXISTS dwh.fact_financial_ratios (
     Company_SK INTEGER,
     TIME_SK INTEGER,
     FN3_3 NUMERIC,
@@ -137,12 +149,12 @@ CREATE TABLE IF NOT EXISTS fact_financial_ratios (
     N010 NUMERIC,
     N011 NUMERIC,
     PRIMARY KEY (COMPANY_SK, TIME_SK),
-    FOREIGN KEY (COMPANY_SK) REFERENCES dim_company(COMPANY_SK),
-    FOREIGN KEY (TIME_SK) REFERENCES dim_time(TIME_SK)
+    FOREIGN KEY (COMPANY_SK) REFERENCES dwh.dim_company(COMPANY_SK),
+    FOREIGN KEY (TIME_SK) REFERENCES dwh.dim_time(TIME_SK)
 );
 
 -- 신용 관련 데이터를 저장하는 팩트 테이블
-CREATE TABLE IF NOT EXISTS fact_credit_behavior (
+CREATE TABLE IF NOT EXISTS dwh.fact_credit_behavior (
     Company_SK INTEGER,
     TIME_SK INTEGER,
     DA0D00021 NUMERIC,
@@ -192,6 +204,6 @@ CREATE TABLE IF NOT EXISTS fact_credit_behavior (
     D2B000003 NUMERIC,
     CORP_GRAD VARCHAR(255),
     PRIMARY KEY (COMPANY_SK, TIME_SK),
-    FOREIGN KEY (COMPANY_SK) REFERENCES dim_company(COMPANY_SK),
-    FOREIGN KEY (TIME_SK) REFERENCES dim_time(TIME_SK)
+    FOREIGN KEY (COMPANY_SK) REFERENCES dwh.dim_company(COMPANY_SK),
+    FOREIGN KEY (TIME_SK) REFERENCES dwh.dim_time(TIME_SK)
 );

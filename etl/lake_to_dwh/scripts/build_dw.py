@@ -5,9 +5,9 @@ import yaml
 import pandas as pd
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
-from scripts.extract import extract_data
-from scripts.cleansing import cleanse_data
-from scripts.load_to_postgres import load_data, create_schema, load_table_from_db
+from etl.lake_to_dwh.scripts.extract import extract_data
+from etl.lake_to_dwh.scripts.cleansing import cleanse_data
+from etl.lake_to_dwh.scripts.load_to_postgres import load_data, create_schema, load_table_from_db
 
 RAW_DATA_PATH = './data/기업신용평가정보_합성데이터.csv'
 COLUMN_REFERENCE_PATH = './data/202109_기업CB.csv'
@@ -28,10 +28,10 @@ def create_dims(df, dw_columns):
     dim_company_to_load = df[company_defining_cols].copy().drop_duplicates()
     dim_company_to_load.columns = dim_company_to_load.columns.str.lower()
 
-    load_data(dim_company_to_load, 'dim_company')
+    load_data(dim_company_to_load, 'dwh.dim_company')
     print("dim_company 생성 및 저장 완료.")
 
-    dim_company = load_table_from_db('dim_company', COL_TYPES_PATH)
+    dim_company = load_table_from_db('dwh.dim_company', COL_TYPES_PATH)
 
 
     # === 2. dim_time 생성 ===
@@ -44,13 +44,33 @@ def create_dims(df, dw_columns):
     dim_time_to_load = df[time_defining_cols].copy().drop_duplicates()
     dim_time_to_load.columns = dim_time_to_load.columns.str.lower()
 
-    load_data(dim_time_to_load, 'dim_time')
+    load_data(dim_time_to_load, 'dwh.dim_time')
     print("dim_time 생성 및 저장 완료.")
-    
-    dim_time = load_table_from_db('dim_time', COL_TYPES_PATH)
+
+    dim_time = load_table_from_db('dwh.dim_time', COL_TYPES_PATH)
+
+
+    # === 3. dim_industry 생성 ===
+    print("dim_industry 생성 중...")
+
+    # shared/config_loader에서 industry_codes 경로 가져오기
+    from shared.config_loader import config
+    industry_csv_path = config['paths']['industry_codes']
+
+    # CSV 파일 읽기
+    industry_df = pd.read_csv(industry_csv_path, encoding='utf-8')
+    industry_df.columns = industry_df.columns.str.lower()  # 컬럼명 소문자로 통일
+
+    # industry_sk는 DB에서 자동 생성되므로 제외
+    dim_industry_to_load = industry_df[['industry_code', 'industry_name']].copy()
+
+    load_data(dim_industry_to_load, 'dwh.dim_industry')
+    print("dim_industry 생성 및 저장 완료.")
+
+    dim_industry = load_table_from_db('dwh.dim_industry', COL_TYPES_PATH)
 
     print("차원 테이블 생성 완료.")
-    return dim_company, dim_time
+    return dim_company, dim_time, dim_industry
     
 
 
@@ -103,10 +123,10 @@ def create_facts(df, dim_company, dim_time, dw_columns):
         fact_cols_lower = [col.lower() for col in fact_cols]
         cols_to_select = ['company_sk', 'time_sk'] + fact_cols_lower
         existing_cols = [col for col in cols_to_select if col in df_merged.columns]
-        
+
         fact_df = df_merged[existing_cols].copy().drop_duplicates()
 
-        load_data(fact_df, fact_name)
+        load_data(fact_df, f'dwh.{fact_name}')
 
         print(f"{fact_name} 생성 및 저장 완료.")
         print(fact_df.head(3))
