@@ -1,0 +1,14 @@
+# config/local_settings.example.yaml
+# (이 파일을 복사해서 local_settings.yaml로 만든 후 사용하세요)
+
+db:
+  user: "YOUR_POSTGRES_USERNAME" 
+  password: "YOUR_POSTGRES_PASSWORD"
+  host: "localhost"
+  port: "5432"
+  db_name: "fintech_cb_pipeline"
+
+paths:
+  raw_data: "/path/to/your/data/raw/data.csv"
+  industry_codes: "/path/to/your/data/fake/industry_codes.csv"
+  columns_map: "/path/to/your/config/columns_map.yaml"
