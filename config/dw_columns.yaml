@@ -9,8 +9,8 @@ dims:
     - CT_CNTY_GU_CD
     - WG_GB
     - AS1C10132
-    - AS1C10132
-    - AS1C10132
+    - ASCD10103
+    - AS1C20102
   
 
   dim_time:

@@ -8,11 +8,11 @@
 
 ## 빌드 및 실행
 
-분석을 실행하려면 필요한 라이브러리가 설치된 Python 환경이 필요합니다. 이 프로젝트는 `.venv` 디렉토리에 있는 가상 환경을 사용합니다.
+분석을 실행하려면 필요한 라이브러리가 설치된 Python 환경이 필요합니다. 이 프로젝트는 `venv` 디렉토리에 있는 가상 환경을 사용합니다.
 
 1.  **가상 환경 활성화:**
     ```bash
-    source .venv/bin/activate
+    source venv/bin/activate
     ```
 
 2.  **의존성 설치:**
@@ -37,7 +37,7 @@
     python run_pipe.py
     ```
 
-    PostgreSQL에 적재한 테이블을 불러옵니다. (table_name 설정 필요)
+    PostgreSQL에 적재한 테이블을 불러옵니다. (파일 내 table_name 설정 필요)
     ```bash
     python scripts/import_type.py
     ```
