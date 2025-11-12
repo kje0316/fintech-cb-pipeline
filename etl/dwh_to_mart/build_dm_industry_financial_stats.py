@@ -2,6 +2,14 @@ import sys
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 import argparse
+from pathlib import Path
+
+# 프로젝트 루트를 Python 경로에 추가
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from shared.config_loader import DB_URL
 
 RAW_DATA_PATH = './data/기업신용평가정보_합성데이터.csv'
 COLUMN_REFERENCE_PATH = './data/202109_기업CB.csv'
@@ -10,21 +18,15 @@ DW_COLUMNS_PATH = './config/dw_columns.yaml'
 SCHEMA_SQL_PATH = './etl/lake_to_dwh/schema.sql'
 
 # --------------------
-# DB 연결
-DB_USER = "hengu"
-DB_PW = "1234"
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "dbdb"
-
+# DB 연결 (shared/config_loader.py 사용)
 engine = create_engine(
-    f"postgresql+psycopg2://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+    DB_URL,
     echo=True,
     future=True
 )
 
 # 스키마 이름
-DM_SCHEMA = "dm_financial_analysis"
+DM_SCHEMA = "marts"
 
 
 def create_schema():
@@ -52,13 +54,13 @@ def drop_table():
 def create_dm_table():
     """업종별 재무비율 통계 테이블 생성"""
     print("\ndm_industry_financial_ratios_stats 테이블 생성 중...")
-    
+
     with engine.begin() as conn:
         # 테이블 생성
         conn.execute(text(f"""
-            CREATE TABLE {DM_SCHEMA}.dm_industry_financial_ratios_stats (
+            CREATE TABLE IF NOT EXISTS {DM_SCHEMA}.dm_industry_financial_ratios_stats (
                 stat_sk SERIAL PRIMARY KEY,
-                industry_code VARCHAR(3) NOT NULL,
+                industry_code VARCHAR(10) NOT NULL,
                 metric_code VARCHAR(10) NOT NULL,
                 
                 -- 통계값
@@ -84,12 +86,12 @@ def create_dm_table():
         
         # 인덱스 생성
         conn.execute(text(f"""
-            CREATE INDEX idx_dmifrs_industry 
+            CREATE INDEX IF NOT EXISTS idx_dmifrs_industry
             ON {DM_SCHEMA}.dm_industry_financial_ratios_stats(industry_code)
         """))
-        
+
         conn.execute(text(f"""
-            CREATE INDEX idx_dmifrs_metric 
+            CREATE INDEX IF NOT EXISTS idx_dmifrs_metric
             ON {DM_SCHEMA}.dm_industry_financial_ratios_stats(metric_code)
         """))
         

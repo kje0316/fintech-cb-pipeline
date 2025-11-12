@@ -139,7 +139,7 @@ if industry_map:
     selected_metric_code = None
     for r_code, (metric_code, korean_name) in METRICS.items():
         if korean_name == selected_metric_name:
-            selected_metric_code = metric_code
+            selected_metric_code = r_code  # DB에 저장된 R001, R006 등의 코드 사용
             break
 
     # 분석 버튼

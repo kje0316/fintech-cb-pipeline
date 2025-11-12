@@ -17,6 +17,11 @@ dims:
     - TIME_SK       # -> PK
     - BS_DT         # -> Date
 
+  dim_industry:
+    - INDUSTRY_SK      # -> PK
+    - INDUSTRY_CODE    # -> 업종 코드 (A01, C10 등)
+    - INDUSTRY_NAME    # -> 업종 한글명
+
 
 facts: # - Company_SK, Time_SK 키로 연결
   fact_financial_statement: # 재무제표

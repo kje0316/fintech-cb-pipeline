@@ -2,24 +2,26 @@ import sys
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 import argparse
+from pathlib import Path
+
+# 프로젝트 루트를 Python 경로에 추가
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from shared.config_loader import DB_URL
 
 # --------------------
-# DB 연결
-DB_USER = "hengu"
-DB_PW = "1234"
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "dbdb"
-
+# DB 연결 (shared/config_loader.py 사용)
 engine = create_engine(
-    f"postgresql+psycopg2://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+    DB_URL,
     echo=False,
     future=True
 )
 
 # 스키마 이름
 DWH_SCHEMA = "dwh"
-DM_SCHEMA = "dm_financial_analysis"
+DM_SCHEMA = "marts"
 
 # 재무비율 메트릭 정의
 METRICS = {

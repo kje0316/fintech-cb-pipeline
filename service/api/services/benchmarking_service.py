@@ -31,7 +31,7 @@ def get_benchmark_stats(industry: str, metric: str) -> Optional[dict]:
                 p50,
                 p75,
                 p90
-            FROM marts.dm_industry_benchmark_v0
+            FROM marts.dm_industry_financial_ratios_stats
             WHERE industry_code = :industry
               AND metric_code = :metric
         """)

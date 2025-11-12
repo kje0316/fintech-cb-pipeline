@@ -1,15 +1,19 @@
 import yaml
-from scripts.extract import extract_data
-from scripts.cleansing import cleanse_data
-from scripts.build_dw import create_dims, create_facts
-from scripts.load_to_postgres import create_schema
+from etl.lake_to_dwh.scripts.extract import extract_data, extract_from_lake
+from etl.lake_to_dwh.scripts.cleansing import cleanse_data
+from etl.lake_to_dwh.scripts.build_dw import create_dims, create_facts
+from etl.lake_to_dwh.scripts.load_to_postgres import create_schema
+from shared.config_loader import config
 
-# Define paths
-RAW_DATA_PATH = './data/기업신용평가정보_합성데이터.csv'
-COLUMN_REFERENCE_PATH = './data/202109_기업CB.csv'
-COL_TYPES_PATH = './config/col_types.yaml'
-DW_COLUMNS_PATH = './config/dw_columns.yaml'
-SCHEMA_SQL_PATH = './etl/lake_to_dwh/schema.sql'
+# Define paths (shared/config_loader에서 가져옴)
+RAW_DATA_PATH = config['paths']['raw_data']
+COLUMN_REFERENCE_PATH = config['paths']['columns_map']  # columns_map.yaml 사용
+COL_TYPES_PATH = 'config/col_types.yaml'
+DW_COLUMNS_PATH = 'config/dw_columns.yaml'
+SCHEMA_SQL_PATH = 'etl/lake_to_dwh/schema.sql'
+
+# ETL 데이터 소스 설정 (config에서 읽기)
+ETL_SOURCE = config.get('etl', {}).get('source', 'csv')
 
 def run_pipeline():
     """
@@ -19,8 +23,19 @@ def run_pipeline():
 
 
     # 1. Extract data
-    print("\nStep 2: Extracting data...")
-    df_raw = extract_data(RAW_DATA_PATH, COLUMN_REFERENCE_PATH)
+    print(f"\nStep 2: Extracting data from '{ETL_SOURCE}'...")
+
+    if ETL_SOURCE == 'lake':
+        # lake.raw_data 테이블에서 데이터 추출
+        df_raw = extract_from_lake(COLUMN_REFERENCE_PATH)
+    elif ETL_SOURCE == 'csv':
+        # CSV 파일에서 데이터 추출
+        df_raw = extract_data(RAW_DATA_PATH, COLUMN_REFERENCE_PATH)
+    else:
+        print(f"✗ 알 수 없는 ETL 소스: {ETL_SOURCE}")
+        print("  config/local_settings.yaml의 etl.source를 'lake' 또는 'csv'로 설정하세요.")
+        return
+
     if df_raw is None:
         print("Data extraction failed. Aborting pipeline.")
         return
@@ -46,8 +61,8 @@ def run_pipeline():
         dw_columns = yaml.safe_load(f)
     
     print("  - Creating and loading dimension tables...")
-    dim_company, dim_time = create_dims(cleaned_data, dw_columns)
-    
+    dim_company, dim_time, dim_industry = create_dims(cleaned_data, dw_columns)
+
     print("  - Creating and loading fact tables...")
     create_facts(cleaned_data, dim_company, dim_time, dw_columns)
     print("Data Warehouse build completed successfully.")

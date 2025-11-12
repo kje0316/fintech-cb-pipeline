@@ -20,6 +20,9 @@ data/*.csv
 data/*.parquet
 data/*.xlsx
 !data/.gitkeep
+data/raw/
+data/sample/
+data/mock/
 
 # Airflow
 airflow/logs/
@@ -51,3 +54,13 @@ Thumbs.db
 credentials.json
 *.pem
 *.key
+
+# 로컬 개발 환경 설정 파일
+config/local_settings.yaml
+
+#
+.claude/
+CLAUDE.md
+
+# docs
+docs/
