@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np 
+import os 
 import pickle
 from typing import Any, Dict, List
 from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -30,7 +31,13 @@ def save_data(df: pd.DataFrame, path: str) -> None:
     :param df: 저장할 pandas DataFrame
     :param path: 저장할 파일 경로
     """
-    print(f"Attempting to save data to {path}...")
+    print(f"Attempting to save data to {path}...")    
+    # 저장할 디렉토리 확인 및 생성
+    dir_path = os.path.dirname(path)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path, exist_ok=True)
+        print(f"디렉토리 생성: {dir_path}")
+
     if path.endswith('.csv'):
         df.to_csv(path, index=False)
     elif path.endswith('.pkl'):
