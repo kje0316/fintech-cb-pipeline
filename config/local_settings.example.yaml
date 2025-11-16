@@ -12,3 +12,5 @@ paths:
   raw_data: "/path/to/your/data/raw/data.csv"
   industry_codes: "/path/to/your/data/fake/industry_codes.csv"
   columns_map: "/path/to/your/config/columns_map.yaml"
+  col_types: "/path/to/your/config/col_types.yaml"
+  cleansed_data_path: "/path/to/your/data/processed/cleansed_data.csv"

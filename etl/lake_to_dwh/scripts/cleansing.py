@@ -542,7 +542,9 @@ def cleanse_data(df_raw, yaml_path):
 
     # 6. 주소지시군구 소수점 제거
     df_raw['CT_CNTY_GU_CD'] = df_raw['CT_CNTY_GU_CD'].astype('Int64').astype(str)
-
+    df_raw['CT_CNTY_GU_CD'] = df_raw['CT_CNTY_GU_CD'].replace('<NA>', np.nan)
+    df_raw['CT_CNTY_GU_CD'] = df_raw['CT_CNTY_GU_CD'].fillna('Unknown')
+    
     # (아래 주석 처리된 코드는 삭제 예정 - 위에서 재계산 완료)
     # # R001: 총자본순이익률 (당기순이익 / 자산총계)
     # df_raw['R001'] = df_raw['FN2-3'] / df_raw['FN1-13'].replace(0, np.nan)
