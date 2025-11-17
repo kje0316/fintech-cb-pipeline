@@ -138,14 +138,14 @@ def build_features(df: pd.DataFrame, processed_data_path: str, model_path: str) 
     # --- 메모리 문제 해결을 위한 임시 샘플링 ---
     print("Temporarily sampling 5000 rows to avoid memory issues...")
     # 원본 데이터프레임을 그대로 사용하려면 아래 라인의 주석을 해제하고 샘플링 라인을 주석 처리하세요.
-    # df_to_process = df 
-    df_to_process = df.sample(n=5000, random_state=42)
+    df_to_process = df.copy() 
+    # df_to_process = df.sample(n=5000, random_state=42)
     
     # 1. 파생변수 생성
     df_processed = create_derived_features(df_to_process)
     
     # 2. 컬럼 타입 정의
-    # categorical_cols = [col for col in df_processed.columns if df_processed[col].dtype == 'object'] # 범주형 변수 처리 비활성화
+    categorical_cols = [col for col in df_processed.columns if df_processed[col].dtype == 'object'] # 범주형 변수 처리 비활성화
     numeric_cols = [col for col in df_processed.columns if pd.api.types.is_numeric_dtype(df_processed[col]) and col not in ['COMPANY_ID']]
     
     print(f"Identified {len(numeric_cols)} numeric columns for processing.")
