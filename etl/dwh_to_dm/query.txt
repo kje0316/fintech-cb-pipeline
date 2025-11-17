@@ -1,0 +1,5 @@
+SELECT *
+FROM "dm"."derived_data"
+WHERE "company_sk" >= 1   -- 1 이상인 값만 선택
+ORDER BY "company_sk" ASC -- 1, 2, 3... 순서로 정렬
+LIMIT 1000;
