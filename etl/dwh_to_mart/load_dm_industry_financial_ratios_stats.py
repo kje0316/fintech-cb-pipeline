@@ -47,26 +47,26 @@ METRICS = {
 
 
 def load_industry_financial_ratios_stats():
-    """업종별 재무비율 통계 적재"""
-    print("\n업종별 재무비율 통계 데이터 적재 중...")
+    """대분류 업종별 재무비율 통계 적재 (A, B, C 등)"""
+    print("\n대분류 업종별 재무비율 통계 데이터 적재 중...")
     print(f"DWH ({DWH_SCHEMA}) → DM ({DM_SCHEMA})")
     print(f"총 {len(METRICS)}개 메트릭 처리\n")
-    
+
     total_inserted = 0
-    
+
     with engine.begin() as conn:
         for metric_code, metric_name in METRICS.items():
             print(f"처리중: {metric_code.upper()} - {metric_name}")
-            
-            # 각 메트릭별로 업종별 통계 계산
+
+            # 각 메트릭별로 대분류 업종별 통계 계산
             query = text(f"""
                 INSERT INTO {DM_SCHEMA}.dm_industry_financial_ratios_stats
-                    (industry_code, metric_code, count, avg_value, median_value, 
+                    (industry_code, metric_code, count, avg_value, median_value,
                      std_value, min_value, max_value, p10, p25, p50, p75, p90, created_at)
-                SELECT 
-                    dc.sic_cd_3 as industry_code,
+                SELECT
+                    LEFT(dc.sic_cd_3, 1) as industry_code,  -- 대분류 (A, B, C 등)
                     '{metric_code.upper()}' as metric_code,
-                    
+
                     -- 통계값
                     COUNT(fr.{metric_code}) as count,
                     AVG(fr.{metric_code})::FLOAT as avg_value,
@@ -74,25 +74,25 @@ def load_industry_financial_ratios_stats():
                     STDDEV(fr.{metric_code})::FLOAT as std_value,
                     MIN(fr.{metric_code})::FLOAT as min_value,
                     MAX(fr.{metric_code})::FLOAT as max_value,
-                    
+
                     -- 백분위수
                     PERCENTILE_CONT(0.10) WITHIN GROUP (ORDER BY fr.{metric_code})::FLOAT as p10,
                     PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY fr.{metric_code})::FLOAT as p25,
                     PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY fr.{metric_code})::FLOAT as p50,
                     PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY fr.{metric_code})::FLOAT as p75,
                     PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY fr.{metric_code})::FLOAT as p90,
-                    
+
                     NOW() as created_at
-                    
+
                 FROM {DWH_SCHEMA}.dim_company dc
-                JOIN {DWH_SCHEMA}.fact_financial_ratios fr 
+                JOIN {DWH_SCHEMA}.fact_financial_ratios fr
                     ON dc.company_sk = fr.company_sk
-                
+
                 WHERE dc.sic_cd_3 IS NOT NULL
                   AND fr.{metric_code} IS NOT NULL
-                
-                GROUP BY dc.sic_cd_3
-                HAVING COUNT(fr.{metric_code}) >= 5  -- 최소 5개 이상 데이터가 있는 업종만
+
+                GROUP BY LEFT(dc.sic_cd_3, 1)  -- 대분류로 집계
+                HAVING COUNT(fr.{metric_code}) >= 10  -- 최소 10개 이상 데이터가 있는 업종만
                 
                 ON CONFLICT (industry_code, metric_code) DO UPDATE SET
                     count = EXCLUDED.count,
