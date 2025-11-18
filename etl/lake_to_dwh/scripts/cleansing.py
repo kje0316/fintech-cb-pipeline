@@ -28,6 +28,24 @@ def cleanse_data(df_raw, yaml_path):
 
     print("데이터 정제 및 변환 시작...")
 
+    # 0. Lake에서 읽어온 데이터의 타입 변환 (모든 컬럼이 TEXT인 경우)
+    # ETL source가 'lake'인 경우, col_types.yaml을 기반으로 타입 변환
+    etl_source = config.get('etl', {}).get('source', 'csv')
+    if etl_source == 'lake':
+        print("  - Lake 데이터 타입 변환 중 (TEXT → numeric)...")
+        with open(yaml_path, 'r', encoding='utf-8') as f:
+            col_types = yaml.safe_load(f)
+
+        numeric_cols = col_types.get('numeric', [])
+        converted_count = 0
+
+        for col in numeric_cols:
+            if col in df_raw.columns:
+                df_raw[col] = pd.to_numeric(df_raw[col], errors='coerce')
+                converted_count += 1
+
+        print(f"    ✓ {converted_count}개 컬럼을 numeric으로 변환")
+
     # Helper function: IQR 이상치 제거 (Leaf 및 Derived 컬럼 공통 사용)
     def remove_outliers_iqr(series, threshold):
         """
@@ -71,6 +89,13 @@ def cleanse_data(df_raw, yaml_path):
         """
         if pd.isna(days):
             return np.nan
+
+        # Lake에서 읽어온 TEXT 타입을 숫자로 변환
+        try:
+            days = float(days) if isinstance(days, str) else days
+        except (ValueError, TypeError):
+            return np.nan
+
         if days == 999999999 or days == 999999999.0:
             return 0  # 이벤트 없음
         elif days > 730:   # 2년 초과
@@ -541,10 +566,9 @@ def cleanse_data(df_raw, yaml_path):
             print(f"    ✓ 이상치 없음")
 
     # 6. 주소지시군구 소수점 제거
-    df_raw['CT_CNTY_GU_CD'] = df_raw['CT_CNTY_GU_CD'].astype('Int64').astype(str)
-    df_raw['CT_CNTY_GU_CD'] = df_raw['CT_CNTY_GU_CD'].replace('<NA>', np.nan)
-    df_raw['CT_CNTY_GU_CD'] = df_raw['CT_CNTY_GU_CD'].fillna('Unknown')
-    
+    # Lake에서 읽은 경우 TEXT → float → Int64 → str 변환
+    df_raw['CT_CNTY_GU_CD'] = pd.to_numeric(df_raw['CT_CNTY_GU_CD'], errors='coerce').astype('Int64').astype(str)
+
     # (아래 주석 처리된 코드는 삭제 예정 - 위에서 재계산 완료)
     # # R001: 총자본순이익률 (당기순이익 / 자산총계)
     # df_raw['R001'] = df_raw['FN2-3'] / df_raw['FN1-13'].replace(0, np.nan)
