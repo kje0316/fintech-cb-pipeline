@@ -76,8 +76,19 @@ def extract_data(data_path, column_map_yaml_path):
     print(f"'{column_map_yaml_path}'에서 컬럼 매핑 로드 중...")
 
     try:
-        # 1. 원본 데이터 로드
-        data_df = pd.read_csv(data_path, encoding='cp949')
+        # 1. 원본 데이터 로드 (UTF-8, CP949 순서로 시도)
+        try:
+            data_df = pd.read_csv(data_path, encoding='utf-8')
+            print("✓ UTF-8 인코딩으로 파일 로드 성공.")
+        except UnicodeDecodeError:
+            print("⚠ UTF-8 로드 실패. CP949 인코딩으로 재시도...")
+            try:
+                data_df = pd.read_csv(data_path, encoding='cp949')
+                print("✓ CP949 인코딩으로 파일 로드 성공.")
+            except UnicodeDecodeError:
+                print("✗ 오류: UTF-8과 CP949 인코딩으로 파일을 모두 읽을 수 없습니다.")
+                raise
+
         original_columns_count = len(data_df.columns)
 
         # 2. columns_map.yaml 로드
