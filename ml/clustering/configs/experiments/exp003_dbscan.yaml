@@ -1,0 +1,24 @@
+# 실험 003: DBSCAN 클러스터링 (기본 파라미터)
+
+experiment_name: 'exp003_dbscan_default_params'
+
+# 사용할 전처리 단계 및 파라미터
+preprocessing:
+  - method: 'fillna'
+    params:
+      strategy: 'median'
+  - method: 'scale'
+    params:
+      scaler: 'StandardScaler'
+
+# 사용할 모델 정보
+model:
+  type: 'DBSCAN'
+  params:
+    eps: 0.5       # 두 샘플이 이웃으로 간주되기 위한 최대 거리
+    min_samples: 5 # 핵심 포인트로 간주되기 위한 이웃의 수
+
+# 평가 지표
+evaluation:
+  metrics:
+    - 'Silhouette' # DBSCAN은 노이즈 포인트(-1)가 있어 다른 지표 계산 시 주의가 필요

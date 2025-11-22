@@ -23,7 +23,8 @@ data/*.xlsx
 data/raw/
 data/sample/
 data/mock/
-
+ml/clustering/data/dump/
+ml/clustering/outputs/
 # Airflow
 airflow/logs/
 airflow/*.db

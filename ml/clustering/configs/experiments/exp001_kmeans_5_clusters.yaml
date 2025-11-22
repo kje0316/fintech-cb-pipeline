@@ -1,0 +1,37 @@
+# 실험 001: K-Means 클러스터링 (k=5)
+
+experiment_name: 'exp001_kmeans_5_clusters'
+
+# 사용할 전처리 단계 및 파라미터
+preprocessing:
+  - method: 'fillna'
+    params:
+      strategy: 'median'
+  - method: 'feature_selection'
+    params:
+      correlation_threshold: 0.9
+      vif_threshold: 5.0
+  - method: 'scale'
+    params:
+      # StandardScaler, MinMaxScaler, PowerTransformer 등
+      scaler: 'StandardScaler'
+  - method: 'pca'
+    params:
+      n_components: 10
+      random_state: 42
+
+# 사용할 모델 정보
+model:
+  type: 'KMeans'
+  params:
+    n_clusters: 5
+    init: 'k-means++'
+    n_init: 10
+    random_state: 42
+
+# 평가 지표
+evaluation:
+  metrics:
+    - 'Silhouette'
+    - 'CalinskiHarabasz'
+    - 'DaviesBouldin'
