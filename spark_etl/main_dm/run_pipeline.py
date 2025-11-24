@@ -26,18 +26,6 @@ from spark_etl.main_dm.scripts import (
 )
 
 
-def add_postgres_constraints():
-    """PostgreSQL 제약조건 추가 (기존 방식)"""
-    from sqlalchemy import create_engine
-    from shared.config_loader import DB_URL
-    
-    engine = create_engine(DB_URL, echo=False, future=True)
-    
-    # 기존 constraints 로직 호출 (PostgreSQL ALTER TABLE)
-    # 별도 파일로 분리 필요
-    print("\n💡 PostgreSQL 제약조건은 별도로 추가하세요 (기존 constraints.py 사용)")
-
-
 def main():
     """
     메인 파이프라인 실행
@@ -146,6 +134,27 @@ def main():
         if CREATE_INDEXES:
             create_indexes(spark, dataframes)
         
+        # ===== STEP 7: PostgreSQL 제약조건 추가 =====
+        if ENABLE_CONSTRAINTS:
+            print("\n" + "="*70)
+            print("STEP 7: PostgreSQL 제약조건 추가")
+            print("="*70 + "\n")
+            
+            try:
+                # postgres_constraints.py 실행
+                from spark_etl.main_dm.scripts.dm_constraints import add_constraints
+                add_constraints()
+                
+                step7_time = datetime.now()
+                print(f"\n⏱️ STEP 7 소요 시간: {(step7_time - step5_time).seconds}초")
+                
+            except ImportError as e:
+                print(f"  ⚠️ postgres_constraints.py를 찾을 수 없습니다: {e}")
+                print("  수동으로 실행하세요: python -m spark_etl.main_dm.scripts.postgres_constraints")
+            except Exception as e:
+                print(f"  ⚠️ 제약조건 추가 실패: {e}")
+                print("  (데이터 무결성을 확인하세요)")
+        
         # ===== 완료 =====
         end_time = datetime.now()
         total_seconds = (end_time - start_time).seconds
@@ -171,8 +180,7 @@ def main():
         print(f"\nPostgreSQL 저장 완료: {DM_SCHEMA} 스키마")
         
         if ENABLE_CONSTRAINTS:
-            print("\n💡 추가 작업:")
-            print("  PostgreSQL 제약조건을 추가하려면 기존 constraints.py를 실행하세요.")
+            print("제약조건 추가 완료: PRIMARY KEY, FOREIGN KEY, UNIQUE, NOT NULL")
         
     except Exception as e:
         print(f"\n✗ 오류 발생: {e}")

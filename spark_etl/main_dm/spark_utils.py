@@ -20,17 +20,20 @@ def get_spark_session():
     SparkSession을 생성하고 반환합니다.
     메모리 최적화 버전
     """
-    # 프로젝트 루트에서 JDBC jar 경로 찾기
-    project_root = Path(__file__).resolve().parents[2]
-    jdbc_jar = project_root / "postgresql-42.7.1.jar"
+    import os
+    from pathlib import Path
+    
+    # SPARK_HOME의 전역 JAR 사용 (변경!)
+    spark_home = os.path.expanduser('~/spark-3.2.4')
+    jdbc_jar = f"{spark_home}/jars/postgresql-42.7.1.jar"
     
     # JDBC jar를 SPARK_CLASSPATH에 추가
-    os.environ['SPARK_CLASSPATH'] = str(jdbc_jar)
+    os.environ['SPARK_CLASSPATH'] = jdbc_jar
     
     spark = SparkSession.builder \
         .appName("ETL_DWH_to_DM") \
-        .config("spark.driver.extraClassPath", str(jdbc_jar)) \
-        .config("spark.executor.extraClassPath", str(jdbc_jar)) \
+        .config("spark.driver.extraClassPath", jdbc_jar) \
+        .config("spark.executor.extraClassPath", jdbc_jar) \
         .config("spark.executor.memory", "20g") \
         .config("spark.driver.memory", "20g") \
         .config("spark.memory.fraction", "0.8") \
