@@ -1,0 +1,10 @@
+conda deactivate
+
+
+# 자기 PC에서
+ssh-keygen -t rsa -b 4096 -f C:\Users\user\.ssh\teamA-key
+
+# 공개키 확인
+type C:\Users\user\.ssh\teamA-key.pub
+
+# 결과를 전송
