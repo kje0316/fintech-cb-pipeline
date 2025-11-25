@@ -25,6 +25,8 @@ data/sample/
 data/mock/
 ml/clustering/data/dump/
 ml/clustering/outputs/
+*.parquet
+ml/data/
 # Airflow
 airflow/logs/
 airflow/*.db
@@ -57,7 +59,16 @@ credentials.json
 *.key
 
 # 로컬 개발 환경 설정 파일
-# config/local_settings.yaml
+config/local_settings.yaml
+
+# ML 실험/백업 파일
+ml_archive/
+mlruns/
+catboost_info/
+
+# 임시 파일
+diagram.html
+test_data.json
 
 #
 .claude/
