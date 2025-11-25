@@ -7,10 +7,10 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parents[3]
 sys.path.append(str(project_root))
 
-from ml.clustering.src.build_features import main as build_features_main
-from ml.clustering.src.train_cluster import main as train_cluster_main
-from ml.clustering.src.predict_cluster import main as predict_cluster_main
-from ml.clustering.src.analyze_cluster import main as analyze_cluster_main
+from ml.clustering.legacy_src.build_features import main as build_features_main
+from ml.clustering.legacy_src.train_cluster import main as train_cluster_main
+from ml.clustering.legacy_src.predict_cluster import main as predict_cluster_main
+from ml.clustering.legacy_src.analyze_cluster import main as analyze_cluster_main
 
 def run_full_pipeline():
     """

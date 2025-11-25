@@ -1,0 +1,17 @@
+# 기본 설정: 데이터 소스, 식별자, 타겟 변수 등 공통 설정 관리
+data_source:
+  # feature_store 테이블을 우선 사용
+  type: 'db'
+  table_name: 'feature_store.preprocessed_training_dataset'
+
+  # 로컬 csv 파일을 사용하려면 아래 주석을 해제하고 위 설정을 주석 처리
+  # type: 'local_csv'
+  # path: 'data/dump/training_dataset_dump.csv'
+
+# 모델 학습 시 제외할 컬럼 또는 식별자 컬럼
+identifier_cols:
+  - 'company_id'
+  - 'bs_dt'
+
+# 모델의 예측 대상이 되는 타겟 컬럼 (클러스터링에서는 사용되지 않을 수 있음)
+target_col: 'perf_12m'

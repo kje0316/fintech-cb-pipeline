@@ -1,0 +1,33 @@
+# 실험 002: K-Means 클러스터링 (k=8), PCA 없음
+
+experiment_name: 'exp002_kmeans_8_nopca'
+
+# 사용할 전처리 단계 및 파라미터
+preprocessing:
+  - method: 'fillna'
+    params:
+      strategy: 'median'
+  - method: 'scale'
+    params:
+      # StandardScaler, MinMaxScaler, PowerTransformer 등
+      scaler: 'StandardScaler'
+  # - method: 'pca' # PCA 단계를 주석 처리하여 비활성화
+  #   params:
+  #     n_components: 10
+  #     random_state: 42
+
+# 사용할 모델 정보
+model:
+  type: 'KMeans'
+  params:
+    n_clusters: 8
+    init: 'k-means++'
+    n_init: 10
+    random_state: 42
+
+# 평가 지표
+evaluation:
+  metrics:
+    - 'Silhouette'
+    - 'CalinskiHarabasz'
+    - 'DaviesBouldin'

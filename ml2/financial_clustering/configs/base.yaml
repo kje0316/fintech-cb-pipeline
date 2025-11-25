@@ -1,0 +1,82 @@
+# Base configuration with common settings for all experiments
+
+# Paths for data and configuration files
+paths:
+  raw_data: 'data/raw/기업신용평가정보_합성데이터_20210801.csv'
+  final_clustered_data: 'ml2/financial_clustering/outputs/final_clustered_data.csv'
+  col_map: 'config/columns_map.yaml'
+  col_types: 'config/col_types.yaml'
+  financial_categories: 'config/financial_categories.yaml'
+  output_dir: 'ml2/financial_clustering/outputs'
+  model_dir: 'ml2/financial_clustering/outputs/models'
+  report_dir: 'ml2/financial_clustering/outputs/reports'
+
+# Parameters for the pipeline
+pipeline_params:
+  run_profiling: true
+  run_visualization: true
+  save_models: true
+
+# Preprocessing parameters (mostly common)
+preprocessing:
+  use_pca: false # Whether to use category-wise PCA before VAE
+  leaf_outlier_removal:
+    enabled: true
+    target_columns:
+      - 'FN1_13'
+      - 'FN1_1'
+      - 'FN1_2'
+      - 'FN1_3'
+      - 'FN1_4'
+      - 'FN1_11'
+      - 'FN1_19'
+      - 'FN1_14'
+      - 'FN1_18'
+      - 'FN1_16'
+      - 'FN1_15'
+      - 'FN1_17'
+      - 'FN1_24'
+      - 'FN1_22'
+      - 'FN2_1'
+      - 'FN2_2'
+      - 'FN2_3'
+      - 'FN2_5'
+      - 'FN2_10'
+      - 'FN3_2'
+  imputation:
+    structural_zero_cols:
+      - 'FN1_15'
+      - 'FN1_16'
+      - 'FN1_9'
+      - 'FN1_11_3'
+      - 'FN1_11_4'
+      - 'FN3_4_1'
+    user_median_cols:
+      - 'FN3_4'
+      - 'FN3_5'
+      - 'R024'
+      - 'R025'
+      - 'N007'
+      - 'R021'
+    categorical_cols:
+      - 'SIC_CD_3'
+      - 'SIC_CD'
+      - 'IND_CD'
+
+# Visualization and Profiling (common)
+visualization:
+  umap_for_plot:
+    n_neighbors: 15
+    min_dist: 0.1
+    n_components: 2
+
+profiling:
+  key_metrics:
+    'FN2_1': '매출액(규모)'
+    'R006': '부채비율(안정)'
+    'R012': '차입금의존도'
+    'R015': '영업이익율(수익)'
+    'R018': 'ROE(효율)'
+    'R002': '매출증가율(성장)'
+    'R022': '자산회전율(활동)'
+    'DA0D00021': '연체건수(위험)'

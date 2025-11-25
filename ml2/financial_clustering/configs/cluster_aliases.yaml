@@ -1,0 +1,16 @@
+# Cluster Nicknames/Aliases for interpretation
+# These are example names and should be refined by a domain expert after analyzing cluster profiles.
+0: "고위험 소규모 기업"
+1: "성장 중심형 기업"
+2: "안정형 중소기업"
+3: "평균 수준 기업"
+4: "고수익 잠재 기업"
+5: "외형 확장형 기업"
+6: "초우량 대기업"
+7: "재무안정성 특화 기업"
+8: "저성장 안정 기업"
+9: "균형잡힌 우량 기업"
+10: "신생 성장 기업"
+11: "고부채 고위험 기업"
+12: "자산효율화 기업"
+# Add more as needed based on clustering results
