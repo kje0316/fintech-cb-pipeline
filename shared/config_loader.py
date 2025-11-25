@@ -20,7 +20,7 @@ def load_yaml(file_path):
             f"❌ 설정 파일({file_path})이 없습니다. "
             f"config/local_settings.example.yaml을 복사해서 생성하세요."
         )
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 # 1. Load local settings

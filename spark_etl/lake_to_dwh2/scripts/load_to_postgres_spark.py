@@ -22,7 +22,7 @@ def get_spark_session():
     
     # 프로젝트 루트에서 JDBC jar 경로 찾기
     project_root = Path(__file__).resolve().parents[3]
-    jdbc_jar = project_root / "postgresql-42.7.1.jar"
+    jdbc_jar = f"{os.path.expanduser('~/spark-3.2.4')}/jars/postgresql-42.7.1.jar"
     
     # JDBC jar를 SPARK_CLASSPATH에 추가
     os.environ['SPARK_CLASSPATH'] = str(jdbc_jar)
