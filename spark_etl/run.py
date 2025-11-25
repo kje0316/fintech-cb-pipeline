@@ -19,6 +19,10 @@ PROJECT_PATH = "~/fintech-cb-pipeline"
 LOCAL_PROJECT_PATH = Path(__file__).parent
 # ==============================================
 
+print(f"\n🔍 연결 정보:")
+print(f"  - SSH 키: {SSH_KEY}")
+print(f"  - 키 존재: {Path(SSH_KEY).exists()}")
+print(f"  - EC2 호스트: {EC2_HOST}")
 
 def print_header(title):
     """헤더 출력"""
