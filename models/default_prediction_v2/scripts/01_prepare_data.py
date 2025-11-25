@@ -20,7 +20,7 @@ def load_raw_data():
     print("📂 원본 데이터 로딩 중...")
 
     # preprocessed_data 사용 (원본 컬럼 + default_yn 타겟)
-    data_path = Path("ml/data/preprocessed_data_20210801.parquet")
+    data_path = Path("models/default_prediction_v2/data/raw/preprocessed_data_20210801.parquet")
 
     if not data_path.exists():
         raise FileNotFoundError(f"학습 데이터를 찾을 수 없습니다: {data_path}")
