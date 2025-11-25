@@ -95,7 +95,7 @@ MLflow Registry에서 새 모델을 Production으로 승격한 후, API 서버�
 **사용 예시**:
 ```bash
 # 1. 새 모델 학습 및 Production 승격
-uv run python models/default_prediction_v2/scripts/02_train_all_models.py
+uv run python ml/training/train_predict.py
 # MLflow UI에서 best 모델을 Production으로 승격
 
 # 2. API 모델 갱신 (재시작 없이)
