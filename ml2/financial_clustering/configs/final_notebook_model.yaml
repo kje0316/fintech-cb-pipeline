@@ -1,0 +1,35 @@
+# Experiment: The final model from the Jupyter Notebook.
+# This uses Beta-VAE for feature extraction + HDBSCAN with soft clustering.
+
+# Do not use category-wise PCA before the VAE
+preprocessing:
+  use_pca: false
+
+# Modeling parameters
+modeling:
+  vae_type: 'beta' # 'vae' or 'beta'
+  beta_vae:
+    latent_dim: 16
+    hidden_dim: 64
+    epochs: 50
+    batch_size: 256
+    lr: 0.001
+    beta: 4.0
+  
+  clustering_algo: 'hdbscan' # 'gmm' or 'hdbscan'
+  hdbscan:
+    min_cluster_size: 1000
+    min_samples: 10
+    cluster_selection_epsilon: 0.5
+    prediction_data: true
+  
+  # UMAP settings for dimensionality reduction before clustering
+  umap_for_clustering:
+    n_neighbors: 30
+    min_dist: 0.0
+    n_components: 2
+
+# Soft clustering parameters
+soft_clustering:
+  enabled: true
+  probability_threshold: 0.3

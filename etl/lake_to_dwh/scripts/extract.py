@@ -77,7 +77,7 @@ def extract_data(data_path, column_map_yaml_path):
 
     try:
         # 1. 원본 데이터 로드
-        data_df = pd.read_csv(data_path, encoding='cp949')
+        data_df = pd.read_csv(data_path, encoding='cp949') #utf-8
         original_columns_count = len(data_df.columns)
 
         # 2. columns_map.yaml 로드
