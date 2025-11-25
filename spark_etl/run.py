@@ -19,10 +19,75 @@ PROJECT_PATH = "~/fintech-cb-pipeline"
 LOCAL_PROJECT_PATH = Path(__file__).parent
 # ==============================================
 
-print(f"\n🔍 연결 정보:")
-print(f"  - SSH 키: {SSH_KEY}")
-print(f"  - 키 존재: {Path(SSH_KEY).exists()}")
-print(f"  - EC2 호스트: {EC2_HOST}")
+
+# def sync_code():
+#     """로컬 코드를 EC2에 동기화 (Git)"""
+#     print_header("코드 동기화 (Git)")
+    
+#     # 로컬에서 Git push
+#     print("\n[로컬] Git 변경사항 확인...")
+    
+#     # Git status 확인
+#     result = subprocess.run(
+#         ["git", "status", "--short"],
+#         cwd=LOCAL_PROJECT_PATH,
+#         capture_output=True,
+#         text=True
+#     )
+    
+#     if result.stdout.strip():
+#         print(f"변경된 파일:\n{result.stdout}")
+        
+#         # Git add
+#         print("[로컬] Git add...")
+#         subprocess.run(
+#             ["git", "add", "."],
+#             cwd=LOCAL_PROJECT_PATH,
+#             capture_output=True
+#         )
+        
+#         # Git commit
+#         commit_msg = f"Auto sync: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+#         print(f"[로컬] Git commit: {commit_msg}")
+#         result = subprocess.run(
+#             ["git", "commit", "-m", commit_msg],
+#             cwd=LOCAL_PROJECT_PATH,
+#             capture_output=True,
+#             text=True
+#         )
+        
+#         # Git push
+#         print("[로컬] Git push...")
+#         result = subprocess.run(
+#             ["git", "push", "origin", "dev"],
+#             cwd=LOCAL_PROJECT_PATH,
+#             capture_output=True,
+#             text=True
+#         )
+        
+#         if result.returncode == 0:
+#             print("✓ 로컬 Git push 완료")
+#         else:
+#             if "Everything up-to-date" in result.stderr:
+#                 print("✓ 이미 최신 상태")
+#             else:
+#                 print(f"⚠ Git push 경고: {result.stderr}")
+#     else:
+#         print("✓ 변경사항 없음 (최신 상태)")
+    
+#     # EC2에서 Git pull
+#     print("\n[EC2] Git pull...")
+#     returncode = run_remote_command(
+#         f"cd {PROJECT_PATH} && git pull origin dev",
+#         show_output=True
+#     )
+    
+#     if returncode == 0:
+#         print("✓ EC2 코드 동기화 완료\n")
+#         return True
+#     else:
+#         print("✗ EC2 코드 동기화 실패\n")
+#         return False
 
 def print_header(title):
     """헤더 출력"""
