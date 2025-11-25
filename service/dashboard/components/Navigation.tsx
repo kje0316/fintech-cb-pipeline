@@ -8,7 +8,7 @@ export default function Navigation() {
 
   const navItems = [
     { href: '/', label: '메인 페이지' },
-    { href: '/company-report', label: '기업 리포트' },
+    { href: '/upload', label: '기업 리포트' },
     { href: '/partners', label: '협력사' },
   ];
 

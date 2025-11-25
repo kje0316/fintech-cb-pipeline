@@ -8,6 +8,9 @@ import type {
   CreditDistribution,
   IndustryRiskRadar,
   FinancialBenchmarks,
+  PredictionResponse,
+  PredictionRequest,
+  LightweightPredictionRequest,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -58,5 +61,43 @@ export const fetchIndustryRiskRadar = async (): Promise<IndustryRiskRadar[]> => 
 
 export const fetchFinancialBenchmarks = async (): Promise<FinancialBenchmarks> => {
   const response = await api.get('/api/v1/dashboard/industry-benchmarks');
+  return response.data;
+};
+
+// Prediction API calls
+
+export const predictCompany = async (
+  businessNumber: string,
+  bsDt?: string
+): Promise<PredictionResponse> => {
+  const params: Record<string, string> = { business_number: businessNumber };
+  if (bsDt) {
+    params.bs_dt = bsDt;
+  }
+  const response = await api.post('/api/v1/predict/company', null, { params });
+  return response.data;
+};
+
+export const predictCompanyByPath = async (
+  businessNumber: string,
+  bsDt?: string
+): Promise<PredictionResponse> => {
+  const params: Record<string, string> = {};
+  if (bsDt) {
+    params.bs_dt = bsDt;
+  }
+  const response = await api.get(`/api/v1/predict/company/${businessNumber}`, { params });
+  return response.data;
+};
+
+export const checkPredictionHealth = async (): Promise<{ status: string; service: string; message: string }> => {
+  const response = await api.get('/api/v1/predict/health');
+  return response.data;
+};
+
+export const predictQuick = async (
+  data: LightweightPredictionRequest
+): Promise<PredictionResponse> => {
+  const response = await api.post('/api/v1/predict/quick', data);
   return response.data;
 };

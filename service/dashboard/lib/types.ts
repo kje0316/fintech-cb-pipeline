@@ -85,3 +85,96 @@ export interface KPICardProps {
   status?: 'safe' | 'moderate' | 'high' | 'improving' | 'worsening' | 'neutral';
   description?: string;
 }
+
+// Prediction API Types
+
+export interface CompanyInfo {
+  bs_dt: string;
+  sic_cd_3: string | null;
+  wg_gb: string | null;
+  empe_cnt: string | null;
+}
+
+export interface DefaultPrediction {
+  default_probability: number;
+  default_prediction: number;
+  risk_level: 'Low' | 'Medium' | 'High';
+  confidence: number;
+}
+
+export interface FeatureContribution {
+  feature_name: string;
+  feature_value: number;
+  shap_value: number;
+  contribution_pct: number;
+}
+
+export interface ShapExplanation {
+  base_value: number;
+  expected_value: number;
+  contributions: FeatureContribution[];
+  error?: string;
+}
+
+export interface PredictionResponse {
+  success: boolean;
+  business_number: string;
+  company_info: CompanyInfo | null;
+  prediction: DefaultPrediction;
+  shap_values: ShapExplanation | null;
+  message?: string;
+}
+
+export interface PredictionRequest {
+  business_number: string;
+  bs_dt?: string;
+}
+
+// Lightweight Prediction Request (13개 필수 입력)
+export interface LightweightPredictionRequest {
+  // 연체 정보 (7개)
+  da0d00029: number;
+  da0d00029_1: number;
+  da0d00026_1: number;
+  da0d00035_2: number;
+  da0d00035_3_2: number;
+  da0d00035_4_1: number;
+  da0d00035_4_2: number;
+  // 신용사건 (2개)
+  d2b000002: number;
+  d2b000003: number;
+  // 재무 정보 (3개)
+  fn1_1: number;
+  fn1_4: number;
+  fn3_11_1: number;
+  // 재무 비율 (1개)
+  r007: number;
+}
+
+// User-Friendly Prediction Request (19개 입력)
+export interface UserFriendlyPredictionRequest {
+  // 재무상태표 (7개)
+  fn1_13: number;  // 자산총계
+  fn1_1: number;   // 유동자산
+  fn1_4: number;   // 재고자산
+  fn1_19: number;  // 부채총계
+  fn1_24: number;  // 자본총계
+  fn1_14: number;  // 유동부채
+  fn1_15: number;  // 단기차입금
+  // 손익계산서 (6개)
+  fn2_1: number;    // 매출액
+  fn2_5: number;    // 영업이익 당기
+  fn2_5_1: number;  // 영업이익 전기
+  fn2_10: number;   // 당기순이익 당기
+  fn2_10_1: number; // 당기순이익 전기
+  fn2_3: number;    // 판매비와관리비
+  // 현금흐름 (1개)
+  fn3_2: number;    // 영업활동현금흐름
+  // 기업정보 (2개)
+  empe_cnt: number; // 종업원수
+  wg_gb: string;    // 외감여부 (Y/N)
+  // 간소화 연체 (3개)
+  has_delinquency: boolean;      // 연체 여부
+  delinquency_days: number;      // 연체일수
+  has_tax_delinquency: boolean;  // 세금 체납 여부
+}
