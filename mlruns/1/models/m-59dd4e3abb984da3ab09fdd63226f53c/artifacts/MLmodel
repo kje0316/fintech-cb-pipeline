@@ -1,0 +1,22 @@
+artifact_path: /Users/kje/coding/project/fintech-cb-pipeline/mlruns/1/models/m-59dd4e3abb984da3ab09fdd63226f53c/artifacts
+flavors:
+  python_function:
+    data: model.ubj
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.10.18
+  xgboost:
+    code: null
+    data: model.ubj
+    model_class: xgboost.sklearn.XGBClassifier
+    model_format: ubj
+    xgb_version: 1.7.6
+mlflow_version: 3.6.0
+model_id: m-59dd4e3abb984da3ab09fdd63226f53c
+model_size_bytes: 371864
+model_uuid: m-59dd4e3abb984da3ab09fdd63226f53c
+prompts: null
+run_id: 3d2732f648dc4d05a4f72bdc298b2ad0
+utc_time_created: '2025-11-23 14:41:11.928111'

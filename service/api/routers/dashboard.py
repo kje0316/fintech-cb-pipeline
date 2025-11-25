@@ -17,7 +17,7 @@ from typing import List, Dict, Any
 from datetime import datetime
 from ..database import get_db
 
-router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+router = APIRouter(prefix="/api/v1/dashboard")
 
 DM_SCHEMA = "marts"
 DWH_SCHEMA = "dwh"

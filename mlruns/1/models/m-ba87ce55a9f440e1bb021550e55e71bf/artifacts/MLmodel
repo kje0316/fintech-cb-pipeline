@@ -1,0 +1,14 @@
+artifact_path: /Users/kje/coding/project/fintech-cb-pipeline/mlruns/1/models/m-ba87ce55a9f440e1bb021550e55e71bf/artifacts
+flavors:
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.2
+mlflow_version: 3.6.0
+model_id: m-ba87ce55a9f440e1bb021550e55e71bf
+model_size_bytes: 2578
+model_uuid: m-ba87ce55a9f440e1bb021550e55e71bf
+prompts: null
+run_id: d2852464b10e418a98a65700a7b20cb0
+utc_time_created: '2025-11-23 15:05:32.129777'

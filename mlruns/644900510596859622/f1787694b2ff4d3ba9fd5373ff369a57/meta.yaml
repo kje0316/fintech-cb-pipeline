@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/kje/coding/project/fintech-cb-pipeline/mlruns/644900510596859622/f1787694b2ff4d3ba9fd5373ff369a57/artifacts
+end_time: 1763902120744
+entry_point_name: ''
+experiment_id: '644900510596859622'
+lifecycle_stage: active
+run_id: f1787694b2ff4d3ba9fd5373ff369a57
+run_name: xgboost_baseline
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1763902112439
+status: 3
+tags: []
+user_id: kje

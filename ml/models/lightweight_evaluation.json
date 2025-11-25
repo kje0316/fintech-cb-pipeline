@@ -1,0 +1,43 @@
+{
+  "model_type": "RandomForestClassifier",
+  "n_features": 12,
+  "features": [
+    "da0d00029",
+    "da0d00029_1",
+    "da0d00035_2",
+    "da0d00035_4_2",
+    "da0d00035_4_1",
+    "inventory_to_current_asset",
+    "da0d00035_3_2",
+    "d2b000003",
+    "d2b000002",
+    "r007",
+    "fn3_11_1",
+    "da0d00026_1"
+  ],
+  "metrics": {
+    "accuracy": 0.9611,
+    "precision": 0.17534246575342466,
+    "recall": 0.42105263157894735,
+    "f1": 0.24758220502901354,
+    "roc_auc": 0.7356038762879986,
+    "pr_auc": 0.12544104678881496
+  },
+  "confusion_matrix": {
+    "tn": 9547,
+    "fp": 301,
+    "fn": 88,
+    "tp": 64
+  },
+  "comparison_with_full_model": {
+    "full_model_metrics": {
+      "accuracy": 0.946,
+      "precision": 0.1297709923664122,
+      "recall": 0.4473684210526316,
+      "f1": 0.20118343195266272,
+      "roc_auc": 0.8025995125913892,
+      "pr_auc": 0.14284694907833415
+    },
+    "retention_pct": 91.65266920147026
+  }
+}

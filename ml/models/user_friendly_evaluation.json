@@ -1,0 +1,31 @@
+{
+  "model_type": "RandomForestClassifier",
+  "model_name": "User-Friendly Model",
+  "n_input_features": 19,
+  "n_total_features": 34,
+  "metrics": {
+    "accuracy": 0.9692,
+    "precision": 0.21323529411764705,
+    "recall": 0.3815789473684211,
+    "f1": 0.27358490566037735,
+    "roc_auc": 0.7734364979263757,
+    "pr_auc": 0.13502735180902867
+  },
+  "confusion_matrix": {
+    "tn": 9634,
+    "fp": 214,
+    "fn": 94,
+    "tp": 58
+  },
+  "comparison_with_full_model": {
+    "full_model_metrics": {
+      "accuracy": 0.946,
+      "precision": 0.1297709923664122,
+      "recall": 0.4473684210526316,
+      "f1": 0.20118343195266272,
+      "roc_auc": 0.8025995125913892,
+      "pr_auc": 0.14284694907833415
+    },
+    "retention_pct": 96.36643005540166
+  }
+}
