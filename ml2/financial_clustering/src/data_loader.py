@@ -3,6 +3,16 @@ import yaml
 import os
 from typing import Dict, Any
 import collections.abc
+import sys
+from pathlib import Path
+
+# Add project root to sys.path to allow importing from etl
+project_root = Path(__file__).resolve().parents[3]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Import the extraction functions from the etl module
+from etl.lake_to_dwh.scripts.extract import extract_from_lake, extract_data
 
 def deep_merge(d1, d2):
     """
@@ -52,7 +62,8 @@ def load_config(config_name: str = 'hdbscan_betavae') -> Dict[str, Any]:
 
 def load_raw_data(config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Loads the raw dataset based on the path provided in the config.
+    Loads the raw dataset based on the source provided in the config.
+    Source can be 'csv' or 'lake'.
 
     Args:
         config: The main configuration dictionary.
@@ -60,12 +71,26 @@ def load_raw_data(config: Dict[str, Any]) -> pd.DataFrame:
     Returns:
         A pandas DataFrame with the raw data.
     """
-    file_path = config['paths']['raw_data']
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Raw data file not found at: {file_path}")
-        
-    print(f"1. Loading raw data from: {file_path}")
-    df_raw = pd.read_csv(file_path)
+    etl_source = config.get('etl', {}).get('source', 'csv')
+    column_map_path = os.path.join(project_root, config['paths']['col_map'])
+
+    print(f"1. Loading raw data from: {etl_source}...")
+
+    df_raw = None
+    if etl_source == 'lake':
+        df_raw = extract_from_lake(column_map_path)
+    elif etl_source == 'csv':
+        file_path = os.path.join(project_root, config['paths']['raw_data'])
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Raw data file not found at: {file_path}")
+        df_raw = extract_data(file_path, column_map_path)
+    else:
+        raise ValueError(f"Unsupported ETL source: {etl_source}. Must be 'lake' or 'csv'.")
+
+    if df_raw is None:
+        raise RuntimeError("Data loading failed.")
+
+    print(f"✓ Data loaded successfully. {len(df_raw):,} rows, {len(df_raw.columns)} columns.")
     return df_raw
 
 def load_yaml_map(yaml_path: str) -> Dict[str, Any]:
@@ -100,7 +125,7 @@ def rename_columns(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
     Returns:
         A DataFrame with English column names.
     """
-    col_map_path = config['paths']['col_map']
+    col_map_path = os.path.join(project_root, config['paths']['col_map'])
     eng_to_kor_map = load_yaml_map(col_map_path)
     
     if not eng_to_kor_map:

@@ -19,11 +19,9 @@
 
 - 클러스터링 모델을 학습시키려면, `--config` 인자로 원하는 실험 설정을 지정합니다.
 
-- **예시: 쥬피터 노트북 최종 모델 실행**
 ```bash
 python -m ml2.financial_clustering.train --config final_notebook_model
 ```
-- 실행이 완료되면 모든 결과물이 `outputs/[설정이름]/` 폴더에 저장됩니다.
 
 ### 2단계: 결과 시각화
 
@@ -40,11 +38,6 @@ python -m ml2.financial_clustering.visualize --experiment final_notebook_model
 ```bash
 python -m ml2.financial_clustering.predict [INPUT_CSV_PATH] --experiment final_notebook_model
 ```
-- **예시**:
-```bash
-python -m ml2.financial_clustering.predict sample_for_prediction.csv --experiment final_notebook_model
-```
-- 실행 결과로 `..._predictions_[실험이름].csv` 파일이 생성됩니다.
 
 ### 4단계: 개별 기업 벤치마킹 차트 생성
 
@@ -53,21 +46,14 @@ python -m ml2.financial_clustering.predict sample_for_prediction.csv --experimen
 ```bash
 python -m ml2.financial_clustering.benchmark_company [INPUT_CSV_PATH] --experiment final_notebook_model
 ```
-- **예시**:
-```bash
-python -m ml2.financial_clustering.benchmark_company sample_for_prediction.csv --experiment final_notebook_model
-```
-- 실행 결과로 `reports/[실험이름]/` 폴더에 `benchmark_[...].png` 차트가 저장됩니다.
 
 ### 5단계: 개별 기업 AI 진단 리포트 생성
 
-- 특정 기업에 대한 요약 진단 리포트(마크다운 파일)를 생성합니다. 이 리포트에는 LLM에 활용하기 좋은 JSON 데이터가 포함되어 있습니다.
+- 특정 기업에 대한 요약 진단 리포트(마크다운 파일)를 생성합니다.
+- **LLM 기반 요약 추가**: `--summarize` 인자를 추가하여 Gemini LLM을 통한 분석 요약을 리포트에 포함할 수 있습니다.
+  - 이 옵션을 사용하면 마크다운 리포트 내에 AI 종합 분석 섹션이 추가되며, AI가 생성한 요약 내용만 별도의 `llm_summary_{회사ID}.txt` 파일로 `reports/[실험이름]/` 폴더에 저장됩니다.
 
 ```bash
-python -m ml2.financial_clustering.generate_report [INPUT_CSV_PATH] --experiment final_notebook_model
+python -m ml2.financial_clustering.generate_report [USER_INPUT_CSV_PATH] --experiment final_notebook_model --summarize
 ```
-- **예시**:
-```bash
-python -m ml2.financial_clustering.generate_report sample_for_prediction.csv --experiment final_notebook_model
-```
-- 실행 결과로 `reports/[실험이름]/` 폴더에 `diagnosis_report_[기업ID].md` 파일이 생성됩니다.
+

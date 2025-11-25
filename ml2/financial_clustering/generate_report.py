@@ -7,10 +7,12 @@ from datetime import datetime
 
 from .src.data_loader import load_config, load_yaml_map
 from .src.predictor import Predictor
+from .src.llm_summarizer import load_llm_config, generate_analysis_report
 
-def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame):
+def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame, summarize: bool = False):
     """
     Generates a structured diagnosis report for a single input company.
+    If summarize is True, it also calls the LLM to generate and save a summary.
     """
     # --- 1. Predict and get basic info ---
     if len(df_input) > 1:
@@ -39,7 +41,6 @@ def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame):
 
     profile_input_processed = df_predicted[key_metrics].iloc[0] # Values after cleansing
     
-    # Ensure df_input has all key_metrics columns, fill with NaN if missing
     for col in key_metrics:
         if col not in df_input.columns:
             df_input[col] = np.nan
@@ -57,9 +58,49 @@ def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame):
     report_md = f"# AI 기업 진단 리포트\n\n"
     report_md += f"- **기업 ID**: {company_id}\n"
     report_md += f"- **분석 기준일**: {bs_dt}\n\n"
-    report_md += "---\n\n"
+    
+    # --- 5. LLM Summarization & Saving ---
+    llm_data = {
+        "company_id": str(company_id),
+        "analysis_date": str(bs_dt),
+        "cluster_id": int(predicted_cluster),
+        "cluster_alias": cluster_alias,
+        "input_company_raw_metrics": profile_input_raw[key_metrics].to_dict(),
+        "summary_table": pd.DataFrame({
+            "입력 기업 (처리 후)": profile_input_processed,
+            "소속 군집 평균": profile_cluster_avg,
+            "전체 기업 평균": profile_overall_avg
+        }).reset_index().rename(columns={'index': 'metric'}).to_dict('records'),
+        "interpretation_guideline": "You are an expert corporate credit analyst. Based on the provided summary table, write a short, easy-to-understand diagnosis of the company's financial health. The company's profile should be compared against its peer group (Cluster Average) and the overall market (Overall Average). Highlight its key strengths and weaknesses."
+    }
 
-    # --- 4A. Add Raw Input Data Section ---
+    if summarize:
+        print("\n--- LLM 요약 시작 ---")
+        llm_config = load_llm_config()
+        if llm_config:
+            print(f"LLM 모델 ({llm_config['model_id']})을 사용하여 요약 생성 중...")
+            summary_report = generate_analysis_report(llm_data, llm_config['api_key'], llm_config['model_id'])
+            
+            # Append summary to the main markdown report
+            report_md += "## AI 종합 분석\n\n"
+            report_md += f"{summary_report}\n\n"
+            
+            # Save the summary to a separate text file
+            report_dir = os.path.join(config['paths']['report_dir'], config['experiment_name'])
+            os.makedirs(report_dir, exist_ok=True)
+            summary_filename = f"llm_summary_{company_id}.txt"
+            summary_save_path = os.path.join(report_dir, summary_filename)
+            with open(summary_save_path, 'w', encoding='utf-8') as f:
+                f.write(summary_report)
+            print(f"✅ LLM 요약이 별도 파일로 저장되었습니다: {summary_save_path}")
+
+            print("--- LLM 요약 완료 ---")
+        else:
+            print("LLM 설정이 없어 요약을 건너뜁니다.")
+
+    report_md += "---\n\n"
+    
+    # --- 6. Add Raw Input Data Section ---
     report_md += "## 입력 데이터 원본 (주요 지표)\n\n"
     df_input_raw_metrics = df_input[key_metrics].T
     df_input_raw_metrics.columns = ['입력값']
@@ -70,7 +111,6 @@ def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame):
     report_md += "## 종합 진단 결과\n\n"
     report_md += f"- **귀속 군집**: Cluster {predicted_cluster} - \"{cluster_alias}\"\n"
     
-    # Simple interpretation for summary
     input_rank = (profile_input_processed > profile_cluster_avg).astype(int).sum()
     peer_group_size = len(key_metrics)
     summary_text = f"동일 군집 내 다른 기업들과 비교 시, {peer_group_size}개의 주요 지표 중 {input_rank}개에서 평균 이상을 기록했습니다."
@@ -81,7 +121,6 @@ def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame):
     report_md += "---\n\n"
     report_md += "## 주요 재무 지표 벤치마크\n\n"
     
-    # Create and format the benchmark table
     df_benchmark = pd.DataFrame({
         "입력 기업 (처리 후)": profile_input_processed,
         "소속 군집 평균": profile_cluster_avg,
@@ -91,21 +130,10 @@ def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame):
     report_md += df_benchmark.to_markdown(floatfmt=",.2f")
     report_md += "\n\n---\n\n"
     
-    # --- 5. Build JSON for LLM ---
-    llm_data = {
-        "company_id": str(company_id),
-        "analysis_date": str(bs_dt),
-        "cluster_id": int(predicted_cluster),
-        "cluster_alias": cluster_alias,
-        "input_company_raw_metrics": profile_input_raw[key_metrics].to_dict(), # Added raw input metrics
-        "summary_table": df_benchmark.reset_index().rename(columns={'index': 'metric'}).to_dict('records'),
-        "interpretation_guideline": "You are an expert corporate credit analyst. Based on the provided summary table, write a short, easy-to-understand diagnosis of the company's financial health. The company's profile should be compared against its peer group (Cluster Average) and the overall market (Overall Average). Highlight its key strengths and weaknesses."
-    }
-    
     report_md += "## LLM 프롬프트용 데이터 (JSON)\n\n"
     report_md += f"```json\n{json.dumps(llm_data, indent=2, ensure_ascii=False)}\n```\n"
 
-    # --- 6. Save Report ---
+    # --- 7. Save Report ---
     report_dir = os.path.join(config['paths']['report_dir'], config['experiment_name'])
     os.makedirs(report_dir, exist_ok=True)
     report_filename = f"diagnosis_report_{company_id}.md"
@@ -114,12 +142,13 @@ def generate_report(config: dict, predictor: Predictor, df_input: pd.DataFrame):
     with open(save_path, 'w', encoding='utf-8') as f:
         f.write(report_md)
         
-    print(f"\n진단 리포트가 성공적으로 생성되었습니다: {save_path}")
+    print(f"\n✅ 진단 리포트가 성공적으로 생성되었습니다: {save_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="Generate a structured diagnosis report for a company.")
     parser.add_argument('input_csv', type=str, help="Path to the input CSV file with a single company's data.")
     parser.add_argument('--experiment', type=str, default='final_notebook_model', help="Name of the trained experiment model to use.")
+    parser.add_argument('--summarize', action='store_true', help="Enable LLM-based summarization of the report.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input_csv):
@@ -130,7 +159,7 @@ def main():
     df_input = pd.read_csv(args.input_csv)
     df_input.columns = [col.upper() for col in df_input.columns] # Standardize column names
     
-    generate_report(predictor.config, predictor, df_input)
+    generate_report(predictor.config, predictor, df_input, args.summarize)
 
 if __name__ == '__main__':
     main()
