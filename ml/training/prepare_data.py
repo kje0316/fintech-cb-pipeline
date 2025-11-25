@@ -20,7 +20,7 @@ def load_raw_data():
     print("📂 원본 데이터 로딩 중...")
 
     # preprocessed_data 사용 (원본 컬럼 + default_yn 타겟)
-    data_path = Path("models/default_prediction_v2/data/raw/preprocessed_data_20210801.parquet")
+    data_path = Path("ml/data/raw/preprocessed_data_20210801.parquet")
 
     if not data_path.exists():
         raise FileNotFoundError(f"학습 데이터를 찾을 수 없습니다: {data_path}")
@@ -169,7 +169,7 @@ def save_data(train_df, test_df, target_col):
     """데이터 저장"""
     print("\n💾 데이터 저장 중...")
 
-    output_dir = Path("data/processed")
+    output_dir = Path("ml/data/processed")
     output_dir.mkdir(exist_ok=True, parents=True)
 
     # Parquet 저장
@@ -232,7 +232,7 @@ def main():
         print("\n" + "=" * 60)
         print("✅ 데이터 준비 완료!")
         print("=" * 60)
-        print(f"다음 단계: python models/default_prediction_v2/scripts/02_train_model.py")
+        print(f"다음 단계: python ml/training/train_predict.py")
 
     except Exception as e:
         print(f"\n❌ 오류 발생: {e}")

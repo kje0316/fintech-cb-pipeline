@@ -29,7 +29,7 @@ def load_model_and_data():
     """모델 및 테스트 데이터 로드"""
     print("📂 모델 및 데이터 로딩 중...")
 
-    model_dir = Path("models/default_prediction_v2/models/production")
+    model_dir = Path("ml/models/default_prediction/v2/artifacts")
 
     # 모델 로드
     with open(model_dir / "model_v1.pkl", 'rb') as f:
@@ -44,7 +44,7 @@ def load_model_and_data():
         metadata = json.load(f)
 
     # 테스트 데이터 로드
-    test_df = pd.read_parquet("data/processed/test_70features.parquet")
+    test_df = pd.read_parquet("ml/data/processed/test_70features.parquet")
 
     # X, y 분리
     X_test = test_df.drop(columns=['default_yn'])
@@ -324,7 +324,7 @@ def main():
 
     try:
         # 출력 디렉토리 생성
-        output_dir = Path("models/default_prediction_v2/results")
+        output_dir = Path("ml/results")
         output_dir.mkdir(exist_ok=True, parents=True)
 
         # 1. 모델 및 데이터 로드

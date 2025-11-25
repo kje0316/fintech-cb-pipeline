@@ -33,8 +33,8 @@ def load_training_data():
     """학습 데이터 로드"""
     print("📂 학습 데이터 로딩 중...")
 
-    train_path = Path("data/processed/train_70features.parquet")
-    test_path = Path("data/processed/test_70features.parquet")
+    train_path = Path("ml/data/processed/train_70features.parquet")
+    test_path = Path("ml/data/processed/test_70features.parquet")
 
     if not train_path.exists() or not test_path.exists():
         raise FileNotFoundError(
@@ -367,7 +367,7 @@ def main():
         print(f"  - AUC-ROC: {best_model['auc_roc']:.4f}")
 
         # 결과 저장
-        results_dir = Path("models/default_prediction_v2/results")
+        results_dir = Path("ml/results")
         results_dir.mkdir(exist_ok=True, parents=True)
 
         results_path = results_dir / "model_comparison.csv"

@@ -50,8 +50,8 @@ class DefaultPredictionV2Service:
         Args:
             use_mlflow_registry: True면 MLflow Registry에서, False면 로컬 파일에서 로드
         """
-        self.model_dir = Path("models/default_prediction_v2/models/production")
-        self.results_dir = Path("models/default_prediction_v2/results")
+        self.model_dir = Path("ml/models/default_prediction/v2/artifacts")
+        self.results_dir = Path("ml/results")
         self.use_mlflow_registry = use_mlflow_registry
 
         if use_mlflow_registry:
