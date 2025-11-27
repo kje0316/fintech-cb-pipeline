@@ -13,8 +13,10 @@ import time
 from pathlib import Path
 
 from service.api.models.prediction import ExcelPredictionResponse
+from service.api.models.clustering import FullAnalysisResponse, IndustryBenchmark, DiagnosisReport
 from service.api.services.default_prediction_v2_service import DefaultPredictionV2Service
 from service.api.services.logging_service import get_logging_service
+from service.api.services.clustering_service import get_clustering_service
 
 router = APIRouter(prefix="/api/v1/predict")
 
@@ -176,6 +178,17 @@ async def predict_from_excel(file: UploadFile = File(...)):
                 inference_time_ms=inference_time_ms
             )
             print(f"✅ 예측 로그 저장 완료: request_id={request_id}")
+
+            # 유저 제출 데이터 정규화 테이블에 저장 (재학습용)
+            submission_id = logging_service.save_user_submission(
+                input_data=excel_input,
+                prediction_request_id=request_id,
+                default_probability=result['default_probability'],
+                risk_level=result['risk_level'],
+                cluster_id=None,
+                cluster_name=None
+            )
+            print(f"✅ 유저 제출 데이터 저장 완료: submission_id={submission_id}")
         except Exception as log_error:
             # 로깅 실패는 무시 (예측 결과에 영향 없도록)
             print(f"⚠️ 로깅 실패 (무시): {log_error}")
@@ -321,4 +334,210 @@ async def get_model_info():
         raise HTTPException(
             status_code=500,
             detail=f"모델 정보 조회 실패: {str(e)}"
+        )
+
+
+# ============================================================================
+# 통합 분석 API (부도예측 + 클러스터링 + 협력사 추천)
+# ============================================================================
+
+@router.post("/full-analysis", response_model=FullAnalysisResponse)
+async def full_analysis(file: UploadFile = File(...)):
+    """
+    엑셀 파일 기반 통합 분석 (부도예측 + 클러스터링 + 협력사 추천)
+
+    **입력**:
+    - 엑셀 파일 (.xlsx, .xls)
+    - 37개 필수 컬럼 포함
+
+    **출력**:
+    - default_prediction: 부도 예측 결과 (확률, 등급, 위험도)
+    - shap_values: SHAP 기반 주요 영향 요인
+    - clustering: 클러스터 예측 결과 (클러스터 ID, 별명, 설명)
+    - benchmark: 클러스터 평균 대비 벤치마크
+    - partners: 추천 협력사 목록 (10개)
+
+    **사용 예시**:
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/predict/full-analysis" \\
+         -F "file=@재무데이터.xlsx"
+    ```
+    """
+    start_time = time.time()
+
+    try:
+        # 1. 파일 확장자 검증
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            raise HTTPException(
+                status_code=400,
+                detail="엑셀 파일(.xlsx, .xls)만 업로드 가능합니다."
+            )
+
+        # 2. 파일 읽기
+        contents = await file.read()
+
+        try:
+            df = pd.read_excel(io.BytesIO(contents), sheet_name='데이터입력', header=0, skiprows=[1, 2])
+            if len(df) == 0 or df.iloc[0].isna().all():
+                df = pd.read_excel(io.BytesIO(contents), sheet_name='샘플데이터', header=0, skiprows=[1, 2])
+        except ValueError:
+            try:
+                df = pd.read_excel(io.BytesIO(contents), sheet_name='샘플데이터', header=0, skiprows=[1, 2])
+            except ValueError:
+                df = pd.read_excel(io.BytesIO(contents), header=0)
+
+        # 3. 서비스 가져오기
+        v2_service = get_v2_service()
+        clustering_service = get_clustering_service()
+
+        # 4. 필수 컬럼 검증
+        required_cols = v2_service.feature_generator.EXCEL_INPUT_FEATURES
+        missing_cols = [col for col in required_cols if col not in df.columns and col != 'fn2_4']
+
+        if missing_cols:
+            raise HTTPException(
+                status_code=400,
+                detail=f"필수 컬럼이 누락되었습니다: {missing_cols}"
+            )
+
+        if len(df) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="엑셀 파일에 데이터가 없습니다."
+            )
+
+        # 5. 데이터 추출
+        first_row = df.iloc[0]
+        excel_input = {}
+        for col in required_cols:
+            value = first_row.get(col, 0)
+            if pd.isna(value):
+                value = 0
+            if col == 'wg_gb':
+                if isinstance(value, str):
+                    value = 1 if value.upper() == 'Y' else 0
+                excel_input[col] = float(value)
+            else:
+                try:
+                    excel_input[col] = float(value)
+                except (ValueError, TypeError):
+                    excel_input[col] = 0.0
+
+        # 6. 부도 예측
+        prediction_result = v2_service.predict_from_excel_input(excel_input)
+        clustering_features = prediction_result.get('clustering_features', {})
+
+        # 7. 클러스터 예측
+        cluster_result = clustering_service.predict_cluster(clustering_features)
+        cluster_id = cluster_result['cluster_id']
+
+        # 8. 벤치마크 계산
+        benchmark_result = clustering_service.get_benchmark(cluster_id, clustering_features)
+
+        # 9. 업종 대비 분석 (신규)
+        industry_code = excel_input.get('sic_cd_3', '') or excel_input.get('SIC_CD_3', '') or 'C'
+        industry_benchmark_result = clustering_service.get_industry_benchmark(
+            industry_code=str(industry_code),
+            company_features=clustering_features
+        )
+
+        # 10. LLM 기반 진단 리포트 생성 (신규)
+        diagnosis_report = clustering_service.generate_diagnosis_report(
+            company_features=clustering_features,
+            default_prediction=prediction_result,
+            cluster_info=cluster_result,
+            benchmark=benchmark_result,
+            industry_benchmark=industry_benchmark_result
+        )
+
+        # 11. SHAP 위험 요인 해석 (신규)
+        shap_values = prediction_result.get('shap_values', {})
+        risk_interpretation = clustering_service.interpret_shap_values(
+            shap_values=shap_values,
+            default_prediction=prediction_result
+        )
+
+        # 12. 레이더 차트 생성 (신규)
+        radar_chart_base64 = clustering_service.generate_radar_chart(
+            company_features=clustering_features,
+            benchmark=benchmark_result,
+            output_format='base64'
+        )
+
+        # 13. 협력사 추천
+        partners = clustering_service.get_partner_recommendations(
+            cluster_id=cluster_id,
+            company_features=clustering_features,
+            limit=10
+        )
+
+        # 14. 로깅
+        inference_time_ms = int((time.time() - start_time) * 1000)
+        try:
+            logging_service = get_logging_service()
+            request_id = logging_service.log_prediction(
+                input_data=excel_input,
+                derived_features=clustering_features,
+                prediction_result=prediction_result,
+                model_version=prediction_result.get('model_version', 'unknown'),
+                model_type=prediction_result.get('model_type', 'unknown'),
+                inference_time_ms=inference_time_ms
+            )
+
+            # 유저 제출 데이터 정규화 테이블에 저장 (재학습용)
+            logging_service.save_user_submission(
+                input_data=excel_input,
+                prediction_request_id=request_id,
+                default_probability=prediction_result['default_probability'],
+                risk_level=prediction_result['risk_level'],
+                cluster_id=cluster_id,
+                cluster_name=cluster_result['cluster_name']
+            )
+        except Exception as log_error:
+            print(f"⚠️ 로깅 실패 (무시): {log_error}")
+
+        # 15. 응답 생성
+        return FullAnalysisResponse(
+            success=True,
+            default_prediction={
+                'default_probability': prediction_result['default_probability'],
+                'default_prediction': prediction_result['default_prediction'],
+                'risk_level': prediction_result['risk_level'],
+                'confidence': prediction_result.get('confidence', 1.0),
+                'model_version': prediction_result.get('model_version', 'unknown'),
+                'model_type': prediction_result.get('model_type', 'unknown')
+            },
+            shap_values=shap_values,
+            clustering={
+                'success': cluster_result['success'],
+                'cluster_id': cluster_result['cluster_id'],
+                'cluster_name': cluster_result['cluster_name'],
+                'cluster_description': cluster_result.get('cluster_description', ''),
+                'method': cluster_result.get('method')
+            },
+            benchmark=benchmark_result,
+            industry_benchmark=IndustryBenchmark(
+                industry_code=industry_benchmark_result['industry_code'],
+                industry_name=industry_benchmark_result['industry_name'],
+                metrics=industry_benchmark_result['metrics'],
+                percentile_rank=industry_benchmark_result['percentile_rank'],
+                summary=industry_benchmark_result['summary']
+            ),
+            diagnosis=DiagnosisReport(
+                report_text=diagnosis_report,
+                risk_interpretation=risk_interpretation,
+                radar_chart=radar_chart_base64
+            ),
+            partners=partners,
+            clustering_features=clustering_features,
+            derived_ratios=prediction_result.get('derived_ratios'),
+            message=f"통합 분석 완료 (소요시간: {inference_time_ms}ms)"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"통합 분석 중 오류가 발생했습니다: {str(e)}"
         )

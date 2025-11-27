@@ -1,0 +1,304 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "time_series",
+          "rawSql": "SELECT\n  date_trunc('hour', created_at) AS time,\n  COUNT(*) AS predictions\nFROM logs.prediction_logs\nWHERE $__timeFilter(created_at)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "예측 요청 수 (시간별)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {
+        "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "time_series",
+          "rawSql": "SELECT\n  date_trunc('hour', created_at) AS time,\n  AVG(default_probability) * 100 AS avg_default_prob,\n  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY default_probability) * 100 AS median_default_prob\nFROM logs.prediction_logs\nWHERE $__timeFilter(created_at)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "평균/중앙값 부도확률 (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 8},
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS total\nFROM logs.prediction_logs\nWHERE created_at > NOW() - INTERVAL '24 hours'",
+          "refId": "A"
+        }
+      ],
+      "title": "총 예측 수 (24시간)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 100}, {"color": "red", "value": 200}]},
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 8},
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "table",
+          "rawSql": "SELECT ROUND(AVG(inference_time_ms), 1) AS avg_inference_time\nFROM logs.prediction_logs\nWHERE created_at > NOW() - INTERVAL '1 hour'",
+          "refId": "A"
+        }
+      ],
+      "title": "평균 추론 시간 (1시간)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 8},
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "table",
+          "rawSql": "SELECT ROUND(AVG(default_probability) * 100, 2) AS avg_prob\nFROM logs.prediction_logs\nWHERE created_at > NOW() - INTERVAL '24 hours'",
+          "refId": "A"
+        }
+      ],
+      "title": "평균 부도확률 (24시간)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}},
+          "mappings": []
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 8},
+      "id": 6,
+      "options": {
+        "legend": {"displayMode": "list", "placement": "right"},
+        "pieType": "donut",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "tooltip": {"mode": "single"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "table",
+          "rawSql": "SELECT\n  risk_level AS \"위험등급\",\n  COUNT(*) AS count\nFROM logs.prediction_logs\nWHERE created_at > NOW() - INTERVAL '24 hours'\nGROUP BY risk_level\nORDER BY count DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "위험등급 분포 (24시간)",
+      "type": "piechart"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}},
+          "mappings": []
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 8},
+      "id": 7,
+      "options": {
+        "legend": {"displayMode": "list", "placement": "right"},
+        "pieType": "donut",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "tooltip": {"mode": "single"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "table",
+          "rawSql": "SELECT\n  model_version AS \"모델버전\",\n  COUNT(*) AS count\nFROM logs.prediction_logs\nWHERE created_at > NOW() - INTERVAL '7 days'\nGROUP BY model_version\nORDER BY count DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "모델 버전별 사용량 (7일)",
+      "type": "piechart"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "id": 8,
+      "options": {
+        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "time_series",
+          "rawSql": "SELECT\n  date_trunc('hour', created_at) AS time,\n  COUNT(CASE WHEN risk_level = 'High' THEN 1 END) AS high_risk,\n  COUNT(CASE WHEN risk_level = 'Medium' THEN 1 END) AS medium_risk,\n  COUNT(CASE WHEN risk_level = 'Low' THEN 1 END) AS low_risk\nFROM logs.prediction_logs\nWHERE $__timeFilter(created_at)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "위험등급별 예측 추이",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "description": "부도확률 분포 히스토그램",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 9,
+      "options": {
+        "bucketCount": 20,
+        "legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "table",
+          "rawSql": "SELECT\n  CASE\n    WHEN default_probability < 0.1 THEN '0-10%'\n    WHEN default_probability < 0.2 THEN '10-20%'\n    WHEN default_probability < 0.3 THEN '20-30%'\n    WHEN default_probability < 0.4 THEN '30-40%'\n    WHEN default_probability < 0.5 THEN '40-50%'\n    WHEN default_probability < 0.6 THEN '50-60%'\n    WHEN default_probability < 0.7 THEN '60-70%'\n    WHEN default_probability < 0.8 THEN '70-80%'\n    WHEN default_probability < 0.9 THEN '80-90%'\n    ELSE '90-100%'\n  END AS bucket,\n  COUNT(*) AS count\nFROM logs.prediction_logs\nWHERE created_at > NOW() - INTERVAL '24 hours'\nGROUP BY bucket\nORDER BY bucket",
+          "refId": "A"
+        }
+      ],
+      "title": "부도확률 분포 (24시간)",
+      "type": "barchart"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"align": "auto", "displayMode": "auto"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+      "id": 10,
+      "options": {
+        "footer": {"fields": "", "reducer": ["sum"], "show": false},
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+          "format": "table",
+          "rawSql": "SELECT\n  created_at AS \"시간\",\n  request_id AS \"요청ID\",\n  ROUND(default_probability * 100, 2) AS \"부도확률(%)\",\n  risk_level AS \"위험등급\",\n  model_version AS \"모델버전\",\n  inference_time_ms AS \"추론시간(ms)\"\nFROM logs.prediction_logs\nWHERE $__timeFilter(created_at)\nORDER BY created_at DESC\nLIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "title": "최근 예측 로그",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["prediction", "monitoring", "ml"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "예측 모니터링",
+  "uid": "prediction-monitoring",
+  "version": 1,
+  "weekStart": ""
+}

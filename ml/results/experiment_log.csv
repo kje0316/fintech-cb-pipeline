@@ -1,2 +1,0 @@
-exp_id,model_type,n_features,auc,f1,precision,recall,notes
-exp001,xgboost_baseline,63,0.7276357208516825,0.15261044176706828,0.10982658959537572,0.25,Initial baseline with 70 features

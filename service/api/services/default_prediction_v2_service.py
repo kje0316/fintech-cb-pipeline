@@ -50,8 +50,8 @@ class DefaultPredictionV2Service:
         Args:
             use_mlflow_registry: True면 MLflow Registry에서, False면 로컬 파일에서 로드
         """
-        self.model_dir = Path("ml/models/default_prediction/v2/artifacts")
-        self.results_dir = Path("ml/results")
+        self.model_dir = Path("ml/models/default_prediction")
+        self.output_dir = Path("ml/outputs/default_prediction")
         self.use_mlflow_registry = use_mlflow_registry
 
         if use_mlflow_registry:
@@ -114,7 +114,7 @@ class DefaultPredictionV2Service:
                 }
 
                 # Feature names는 로컬 메타데이터에서 로드 (임시)
-                local_metadata_path = self.model_dir / "metadata_v1.json"
+                local_metadata_path = self.model_dir / "metadata.json"
                 if local_metadata_path.exists():
                     with open(local_metadata_path, 'r', encoding='utf-8') as f:
                         local_metadata = json.load(f)
@@ -138,15 +138,15 @@ class DefaultPredictionV2Service:
             print("📦 로컬 파일에서 모델 로딩 중...")
 
             # 모델 로드
-            with open(self.model_dir / "model_v1.pkl", 'rb') as f:
+            with open(self.model_dir / "model.pkl", 'rb') as f:
                 self.model = pickle.load(f)
 
             # 스케일러 로드
-            with open(self.model_dir / "scaler_v1.pkl", 'rb') as f:
+            with open(self.model_dir / "scaler.pkl", 'rb') as f:
                 self.scaler = pickle.load(f)
 
             # 메타데이터 로드
-            with open(self.model_dir / "metadata_v1.json", 'r', encoding='utf-8') as f:
+            with open(self.model_dir / "metadata.json", 'r', encoding='utf-8') as f:
                 self.metadata = json.load(f)
 
             # Feature names
@@ -158,7 +158,7 @@ class DefaultPredictionV2Service:
             print(f"   - AUC: {self.metadata.get('metrics', {}).get('auc_roc', 'N/A')}")
 
         # SHAP explainer 로드 (존재하면)
-        shap_path = self.results_dir / "shap_values.pkl"
+        shap_path = self.output_dir / "shap_values.pkl"
         if shap_path.exists():
             with open(shap_path, 'rb') as f:
                 shap_data = pickle.load(f)
@@ -252,6 +252,44 @@ class DefaultPredictionV2Service:
         # 6. 모든 numpy 타입을 Python 기본 타입으로 변환
         return convert_numpy_types(result)
 
+    # 피처명 한글 매핑
+    FEATURE_NAME_KR = {
+        # 재무상태표 (FN1)
+        'FN1_1': '유동자산', 'FN1_4': '재고자산', 'FN1_11': '비유동자산',
+        'FN1_13': '자산총계', 'FN1_14': '유동부채', 'FN1_15': '단기차입금',
+        'FN1_16': '비유동부채', 'FN1_19': '부채총계', 'FN1_20': '자본금',
+        'FN1_24': '자본총계',
+        # 손익계산서 (FN2)
+        'FN2_1': '매출액', 'FN2_2_1': '매출원가', 'FN2_5': '영업이익',
+        'FN2_10': '당기순이익',
+        # 현금흐름 (FN3)
+        'FN3_1': '영업활동현금흐름', 'FN3_2': '투자활동현금흐름',
+        'FN3_3': '재무활동현금흐름', 'FN3_4': '현금및현금성자산증가',
+        'FN3_6': '기초현금', 'FN3_7': '기말현금', 'FN3_8': 'EBITDA',
+        'FN3_10': '잉여현금흐름', 'FN3_11': '순운전자본증감',
+        'FN3_11_1': '이자보상배율',
+        # 연체 정보 (DA)
+        'DA0D00021': '연체건수', 'DA0D00026': '연체금액',
+        'DA0D00029': '최장연체일수', 'DA0D00033_1': '세금체납금액',
+        'DA0D00035_1': '연체발생금액',
+        # 신용사건 (DB, D2B)
+        'DB0D00006': '신용사건건수', 'D2B000012': '부도이력',
+        # 재무비율 (R)
+        'R001': '총자산증가율', 'R002': '매출증가율', 'R003': '순이익증가율',
+        'R004': '자기자본증가율', 'R006': '부채비율', 'R007': '유동부채비율',
+        'R008': '유동비율', 'R009': '당좌비율', 'R012': '차입금의존도',
+        'R013': '매출총이익률', 'R015': '영업이익률', 'R016': '순이익률',
+        'R018': 'ROE', 'R019': '총자산회전율', 'R020': '매출채권회전율',
+        'R021': '재고자산회전율', 'R022': '매입채무회전율', 'R023': 'ROA',
+        'R024': '현금흐름부채비율', 'R025': '이자보상배율',
+        # 기타 지표 (N)
+        'N001': '매출액대비영업이익', 'N002': '매출액대비순이익',
+        'N003': '자기자본비율', 'N004': '비유동비율', 'N005': '비유동장기적합률',
+        'N006': 'EBITDA마진율', 'N007': '현금흐름이자보상배율',
+        'N008': '영업현금흐름비율', 'N009': '투자현금흐름비율',
+        'N010': '순운전자본비율', 'N011': '현금전환주기', 'N012': '자산효율성',
+    }
+
     def _generate_shap_explanation(
         self,
         X_scaled: np.ndarray,
@@ -266,8 +304,12 @@ class DefaultPredictionV2Service:
             # 피처별 기여도 계산
             contributions = []
             for i, feature_name in enumerate(self.feature_names):
+                # 한글 피처명 매핑
+                feature_name_kr = self.FEATURE_NAME_KR.get(feature_name, feature_name)
+
                 contributions.append({
-                    'feature_name': feature_name,
+                    'feature_name': feature_name_kr,
+                    'feature_name_en': feature_name,
                     'feature_value': float(X_scaled[0, i]),
                     'shap_value': float(shap_values[0, i]),
                     'contribution_pct': abs(float(shap_values[0, i])) / (abs(shap_values[0]).sum() + 1e-10) * 100

@@ -7,10 +7,8 @@ import numpy as np
 from typing import Dict, Any
 from pathlib import Path
 
-from service.api.services.user_friendly_prediction_service import UserFriendlyPredictionService
 
-
-class ExcelPredictionService(UserFriendlyPredictionService):
+class ExcelPredictionService:
     """
     엑셀 업로드 전용 예측 서비스 (37개 입력)
 
@@ -83,8 +81,8 @@ class ExcelPredictionService(UserFriendlyPredictionService):
     ]
 
     def __init__(self):
-        """초기화 - UserFriendly 모델 활용"""
-        super().__init__()
+        """초기화"""
+        pass
 
     def create_derived_features(self, input_data: Dict) -> Dict:
         """
@@ -96,8 +94,72 @@ class ExcelPredictionService(UserFriendlyPredictionService):
         Returns:
             70개 피처 딕셔너리
         """
-        # 1. UserFriendly 모델의 15개 파생 변수 생성 (부모 클래스 메서드)
-        data = super().create_derived_features(input_data)
+        # 기본 입력 복사
+        data = dict(input_data)
+
+        # 1. 기본 재무비율 계산
+        # 안정성 비율
+        if data.get('fn1_24', 0) > 0:
+            data['debt_ratio'] = data.get('fn1_19', 0) / data['fn1_24']  # 부채비율
+            data['equity_ratio'] = data['fn1_24'] / (data.get('fn1_13', 0) + 1e-6)  # 자기자본비율
+        else:
+            data['debt_ratio'] = 0
+            data['equity_ratio'] = 0
+
+        if data.get('fn1_14', 0) > 0:
+            data['current_ratio'] = data.get('fn1_1', 0) / data['fn1_14']  # 유동비율
+            data['quick_ratio'] = (data.get('fn1_1', 0) - data.get('fn1_4', 0)) / data['fn1_14']  # 당좌비율
+        else:
+            data['current_ratio'] = 0
+            data['quick_ratio'] = 0
+
+        # 단기차입금의존도
+        if data.get('fn1_13', 0) > 0:
+            data['short_term_borrowing_dependency'] = data.get('fn1_15', 0) / data['fn1_13']
+        else:
+            data['short_term_borrowing_dependency'] = 0
+
+        # 수익성 비율
+        if data.get('fn2_1', 0) > 0:
+            data['operating_margin'] = data.get('fn2_5', 0) / data['fn2_1']  # 영업이익률
+        else:
+            data['operating_margin'] = 0
+
+        if data.get('fn1_24', 0) > 0:
+            data['roe'] = data.get('fn2_10', 0) / data['fn1_24']  # ROE
+        else:
+            data['roe'] = 0
+
+        # 활동성 비율
+        if data.get('fn1_13', 0) > 0:
+            data['total_capital_turnover'] = data.get('fn2_1', 0) / data['fn1_13']  # 총자산회전율
+        else:
+            data['total_capital_turnover'] = 0
+
+        if data.get('fn1_4', 0) > 0:
+            data['inventory_turnover'] = data.get('fn2_2', 0) / data['fn1_4']  # 재고자산회전율
+        else:
+            data['inventory_turnover'] = 0
+
+        # 성장성 비율
+        if data.get('fn2_5_1', 0) != 0:
+            data['operating_income_growth'] = (data.get('fn2_5', 0) - data.get('fn2_5_1', 0)) / abs(data['fn2_5_1'])
+        else:
+            data['operating_income_growth'] = 0
+
+        if data.get('fn2_10_1', 0) != 0:
+            data['net_income_growth'] = (data.get('fn2_10', 0) - data.get('fn2_10_1', 0)) / abs(data['fn2_10_1'])
+        else:
+            data['net_income_growth'] = 0
+
+        # 현금흐름 비율
+        if data.get('fn1_19', 0) > 0:
+            data['cash_to_debt'] = data.get('fn3_1', 0) / data['fn1_19']  # 현금/부채비율
+        else:
+            data['cash_to_debt'] = 0
+
+        # 순운전자본
+        data['net_working_capital'] = data.get('fn1_1', 0) - data.get('fn1_14', 0)
 
         # 2. 추가 파생 변수 생성 (10개)
 
@@ -322,43 +384,28 @@ class ExcelPredictionService(UserFriendlyPredictionService):
 
         return clustering_data
 
-    def predict_from_excel_data(self, input_data: Dict) -> Dict:
+    def generate_features_from_excel(self, input_data: Dict) -> Dict:
         """
-        엑셀 데이터로부터 통합 예측 수행
+        엑셀 데이터로부터 70개 클러스터링 피처 생성
 
         Args:
-            input_data: 30개 기본 입력 딕셔너리
+            input_data: 37개 기본 입력 딕셔너리
 
         Returns:
             {
                 'success': bool,
-                'n_features': int,
-                'prediction': DefaultPrediction,
-                'shap_values': ShapExplanation,
                 'clustering_features': Dict,  # 70개 클러스터링 피처
                 'derived_ratios': Dict  # 자동 계산된 재무비율
             }
         """
         try:
-            # 1. 기본 입력 검증
-            missing = [col for col in self.EXCEL_INPUT_FEATURES
-                      if col not in input_data and col != 'fn2_4']  # 이자비용은 선택적
-            if missing:
-                return {
-                    'success': False,
-                    'error': f'필수 컬럼이 누락되었습니다: {missing}'
-                }
-
-            # 2. 파생 변수 생성 (70개)
+            # 1. 파생 변수 생성
             full_data = self.create_derived_features(input_data)
 
-            # 3. 부도 예측 (UserFriendly 모델 활용)
-            prediction_result = self.predict_from_input(input_data)
-
-            # 4. 클러스터링 피처 매핑 (70개)
+            # 2. 클러스터링 피처 매핑 (70개)
             clustering_features = self.map_to_clustering_features(full_data)
 
-            # 5. 자동 계산된 재무비율만 추출
+            # 3. 자동 계산된 재무비율만 추출
             derived_ratios = {
                 '안정성': {
                     '부채비율': full_data.get('debt_ratio', 0),
@@ -395,17 +442,15 @@ class ExcelPredictionService(UserFriendlyPredictionService):
             return {
                 'success': True,
                 'n_features': len(clustering_features),
-                'prediction': prediction_result.get('prediction'),
-                'shap_values': prediction_result.get('shap_values'),
                 'clustering_features': clustering_features,
                 'derived_ratios': derived_ratios,
-                'message': f'엑셀 데이터 분석 완료 (입력 {len(input_data)}개 → 피처 {len(clustering_features)}개 생성)'
+                'message': f'피처 생성 완료 (입력 {len(input_data)}개 → 피처 {len(clustering_features)}개)'
             }
 
         except Exception as e:
             return {
                 'success': False,
-                'error': f'예측 중 오류 발생: {str(e)}'
+                'error': f'피처 생성 중 오류 발생: {str(e)}'
             }
 
 
