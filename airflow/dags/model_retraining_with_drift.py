@@ -1,17 +1,29 @@
 """
-드리프트 감지 시 자동 재학습 파이프라인
+드리프트 감지 시 자동 재학습 파이프라인 (누적 방식)
 
 실행 조건:
 1. 주간으로 PSI 계산 및 드리프트 체크
-2. PSI > 0.2이면 다음 기준년월 데이터로 재학습
-3. 새 모델 성능이 현재 모델보다 2% 이상 좋으면 Production 승격
-4. API 서버에 모델 재로드 요청
+2. PSI > 0.2이면 재학습 트리거
+3. 기존 데이터 + 새 기준년월 데이터를 **누적**하여 학습
+4. 새 모델 성능이 현재 모델보다 좋으면 Production 승격
+   - 부도예측: AUC 2% 이상 개선
+   - 클러스터링: Silhouette Score 개선
+5. API 서버에 모델 재로드 요청
 
-기준년월 순서: 20210801 → 20220801 → 20230801 → ...
+누적 학습 방식:
+- 초기: 20210801만 사용
+- 1차 재학습: 20210801 + 20210901
+- 2차 재학습: 20210801 + 20210901 + 20211001
+- ... (정답 레이블이 있는 과거 데이터를 누적)
+
+모델 종류:
+- default_prediction: XGBoost/CatBoost 기반 부도예측 모델
+- clustering: VAE + HDBSCAN 기반 기업 클러스터링 모델
 """
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from datetime import datetime, timedelta
 import pandas as pd
@@ -25,6 +37,17 @@ import requests
 # Python 경로 설정
 PROJECT_ROOT = '/Users/kje/coding/project/fintech-cb-pipeline'
 sys.path.insert(0, PROJECT_ROOT)
+
+# ML 모듈 import (70개 피처 파이프라인 - 부도예측)
+from ml.default_prediction.run_pipeline import (
+    INPUT_37_COLUMNS,
+    create_derived_features,
+    map_to_70_features
+)
+from ml.default_prediction.training.train import run_training_pipeline
+
+# 클러스터링 파이프라인 import
+from ml.clustering.training.train import run_clustering_pipeline
 
 default_args = {
     'owner': 'mlops-team',
@@ -187,21 +210,11 @@ def determine_next_base_ym(**context):
     logging.info(f"   - model_version: {current_version}")
     logging.info(f"   - AUC-ROC: {current_auc:.4f}")
 
-    # 원본 CSV에서 사용 가능한 기준년월 목록 조회
-    import pandas as pd
-    import os
+    # Feature Store에서 사용 가능한 기준년월 목록 조회
+    from ml.common.feature_store import get_available_base_yms
 
-    # 프로젝트 루트 디렉토리 찾기
-    airflow_home = os.environ.get('AIRFLOW_HOME', '/Users/kje/coding/project/fintech-cb-pipeline/airflow')
-    project_root = os.path.dirname(airflow_home)
-    csv_path = os.path.join(project_root, 'data/raw/기업신용평가정보_합성데이터.csv')
-
-    logging.info(f"📂 Reading base_ym from: {csv_path}")
-
-    df_base_ym = pd.read_csv(csv_path, encoding='cp949', usecols=['기준년월'])
-    available_base_yms = sorted(df_base_ym['기준년월'].unique().tolist())
-
-    logging.info(f"📋 Available base_ym in source CSV: {available_base_yms}")
+    available_base_yms = get_available_base_yms()
+    logging.info(f"📋 Available base_ym in Feature Store: {available_base_yms}")
 
     # 다음 기준년월 결정
     try:
@@ -234,61 +247,78 @@ def determine_next_base_ym(**context):
 
 def extract_training_data(**context):
     """
-    Step 3: 원본 CSV에서 새 기준년월 데이터 추출
-    """
-    import pandas as pd
+    Step 3: Feature Store에서 누적 학습 데이터 추출
 
+    Feature Store 마트에서 직접 로드 (70개 피처 이미 생성됨)
+    누적 방식: 시작(20210801)부터 next_base_ym까지의 모든 데이터
+    """
     ti = context['ti']
     next_base_ym = ti.xcom_pull(key='next_base_ym', task_ids='determine_next_base_ym')
 
     logging.info("=" * 80)
-    logging.info(f"📦 Step 3: Extracting training data for base_ym={next_base_ym}")
+    logging.info(f"📦 Step 3: Loading CUMULATIVE training data from Feature Store (up to base_ym={next_base_ym})")
     logging.info("=" * 80)
 
-    # 원본 CSV 경로
+    # Feature Store에서 데이터 로드
+    from ml.common.feature_store import load_from_feature_store, get_available_base_yms
+
+    # 사용 가능한 기준년월 목록
+    available_base_yms = get_available_base_yms()
+    logging.info(f"📋 Available base_ym in Feature Store: {available_base_yms}")
+
+    # 누적 방식: 시작(20210801)부터 next_base_ym까지의 모든 데이터
+    base_yms_to_use = [ym for ym in available_base_yms if ym <= next_base_ym]
+    logging.info(f"📊 Cumulative base_ym to use: {base_yms_to_use}")
+
+    if not base_yms_to_use:
+        raise ValueError(f"No training data found for base_ym <= {next_base_ym}")
+
+    # Feature Store에서 누적 데이터 로드
+    df_70 = load_from_feature_store(base_ym=base_yms_to_use, include_target=True)
+
+    logging.info(f"✅ Loaded CUMULATIVE data from Feature Store:")
+    logging.info(f"   - Total rows: {len(df_70):,}")
+    logging.info(f"   - Base months included: {len(base_yms_to_use)}")
+    logging.info(f"   - Columns: {len(df_70.columns)}")
+
+    # 각 기준년월별 데이터 수 로깅
+    if 'base_ym' in df_70.columns:
+        for ym in base_yms_to_use:
+            ym_count = len(df_70[df_70['base_ym'] == ym])
+            logging.info(f"   - {ym}: {ym_count:,} rows")
+
+    # 타겟 컬럼 확인
+    if 'default_yn' not in df_70.columns:
+        raise ValueError("타겟 컬럼 'default_yn'을 찾을 수 없습니다.")
+
+    target_values = df_70['default_yn'].values
+    default_rate = float(np.nanmean(target_values))
+    logging.info(f"   - Default rate: {default_rate:.4f}")
+
+    if len(df_70) < 1000:
+        raise ValueError(f"Not enough training data! Only {len(df_70)} rows found")
+
+    # 결측치/무한값 처리
+    df_70 = df_70.replace([np.inf, -np.inf], 0)
+    df_70 = df_70.fillna(0)
+
+    logging.info(f"   ✅ Data ready: {df_70.shape}")
+
+    # Parquet 저장 (캐싱용)
     airflow_home = os.environ.get('AIRFLOW_HOME', '/Users/kje/coding/project/fintech-cb-pipeline/airflow')
     project_root = os.path.dirname(airflow_home)
-    csv_path = os.path.join(project_root, 'data/raw/기업신용평가정보_합성데이터.csv')
-
-    logging.info(f"📂 Reading from: {csv_path}")
-
-    # 해당 기준년월 데이터만 필터링
-    df = pd.read_csv(csv_path, encoding='cp949')
-    df_filtered = df[df['기준년월'] == next_base_ym].copy()
-
-    logging.info(f"✅ Extracted {len(df_filtered)} rows for base_ym={next_base_ym}")
-    logging.info(f"   - Total columns: {len(df_filtered.columns)}")
-
-    # Default flag 컬럼 확인 (없으면 경고)
-    default_col = None
-    for col in df_filtered.columns:
-        if 'default' in col.lower() or '부도' in col:
-            default_col = col
-            break
-
-    if default_col:
-        logging.info(f"   - Default column: {default_col}")
-        logging.info(f"   - Default rate: {df_filtered[default_col].mean():.4f}")
-    else:
-        logging.warning("⚠️  No default flag column found")
-
-    if len(df_filtered) < 1000:
-        raise ValueError(f"Not enough training data! Only {len(df_filtered)} rows found for base_ym={next_base_ym}")
-
-    # Parquet 저장
-    output_dir = os.path.join(project_root, 'ml/data')
+    output_dir = os.path.join(project_root, 'data/processed')
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f'raw_data_full_{next_base_ym}.parquet')
+    output_path = os.path.join(output_dir, f'train_70features_cumulative_upto_{next_base_ym}.parquet')
 
-    df_filtered.to_parquet(output_path, index=False)
-    logging.info(f"💾 Saved to: {output_path}")
+    df_70.to_parquet(output_path, index=False)
+    logging.info(f"💾 Cached training data to: {output_path}")
 
     # XCom에 저장
     context['ti'].xcom_push(key='training_data_path', value=output_path)
-    context['ti'].xcom_push(key='training_samples', value=len(df_filtered))
-
-    default_rate = df_filtered[default_col].mean() if default_col else 0.0
-    context['ti'].xcom_push(key='default_rate', value=float(default_rate))
+    context['ti'].xcom_push(key='training_samples', value=len(df_70))
+    context['ti'].xcom_push(key='base_yms_used', value=base_yms_to_use)
+    context['ti'].xcom_push(key='default_rate', value=default_rate)
 
 
 def run_ml_training_pipeline(**context):
@@ -309,26 +339,31 @@ def run_ml_training_pipeline(**context):
     logging.info(f"   - training_data: {training_data_path}")
     logging.info("=" * 80)
 
-    # 실제로는 ml/scripts/run_full_ml_pipeline.py 를 base_ym 파라미터와 함께 실행
-    # 여기서는 간단히 시뮬레이션
+    # 실제 ML 학습 파이프라인 실행
+    try:
+        result = run_training_pipeline(
+            base_ym=next_base_ym,
+            data_path=training_data_path,
+            model_version=new_version,
+            model_type='catboost',
+            experiment_name='default_prediction_retraining'
+        )
 
-    logging.info("📝 Step 4-1: Feature Engineering...")
-    # subprocess.run(['python3', f'{PROJECT_ROOT}/ml/scripts/03_feature_engineering.py', '--base_ym', str(next_base_ym)])
+        new_auc = result['auc_roc']
 
-    logging.info("🎓 Step 4-2: Model Training...")
-    # subprocess.run(['python3', f'{PROJECT_ROOT}/ml/scripts/04_train_default_model.py', '--base_ym', str(next_base_ym)])
+        logging.info(f"✅ Training completed!")
+        logging.info(f"   - Model type: {result['model_type']}")
+        logging.info(f"   - AUC-ROC: {new_auc:.4f}")
+        logging.info(f"   - F1-Score: {result['f1_score']:.4f}")
+        logging.info(f"   - Train samples: {result['n_train_samples']:,}")
 
-    # 시뮬레이션: 새 모델의 성능 (실제로는 학습 후 MLflow에서 조회)
-    import random
-    random.seed(next_base_ym)
-    new_auc = 0.746 + random.uniform(-0.03, 0.05)  # 0.716 ~ 0.796 범위
-    new_auc = round(new_auc, 4)
-
-    logging.info(f"✅ Training completed!")
-    logging.info(f"   - New model AUC-ROC: {new_auc:.4f}")
+    except Exception as e:
+        logging.error(f"❌ Training failed: {str(e)}")
+        raise
 
     # XCom에 저장
     context['ti'].xcom_push(key='new_auc', value=new_auc)
+    context['ti'].xcom_push(key='training_result', value=result)
 
 
 def evaluate_and_compare(**context):
@@ -465,6 +500,210 @@ def skip_retraining(**context):
 
 
 # ============================================================================
+# 클러스터링 모델 재학습 함수들
+# ============================================================================
+
+def run_clustering_training(**context):
+    """
+    Step 4-B: 클러스터링 모델 학습 파이프라인 실행
+
+    VAE 피처 추출 → UMAP → HDBSCAN 클러스터링 → MLflow 등록
+    """
+    ti = context['ti']
+    next_base_ym = ti.xcom_pull(key='next_base_ym', task_ids='determine_next_base_ym')
+
+    logging.info("=" * 80)
+    logging.info(f"🧠 Step 4-B: Running Clustering training pipeline")
+    logging.info(f"   - base_ym: {next_base_ym}")
+    logging.info("=" * 80)
+
+    try:
+        # 클러스터링 학습 파이프라인 실행
+        result = run_clustering_pipeline(
+            config_name='final_notebook_model',
+            save_models=True,
+            experiment_name='clustering_retraining',
+            register_to_mlflow=True  # MLflow에 등록하되, Production 승격은 별도로
+        )
+
+        new_silhouette = result.get('silhouette_score', 0)
+        n_clusters = result.get('n_clusters', 0)
+
+        logging.info(f"✅ Clustering training completed!")
+        logging.info(f"   - Clusters: {n_clusters}")
+        logging.info(f"   - Silhouette Score: {new_silhouette:.4f}")
+        logging.info(f"   - Samples: {result['n_samples']:,}")
+        logging.info(f"   - Noise: {result['n_noise']:,}")
+
+    except Exception as e:
+        logging.error(f"❌ Clustering training failed: {str(e)}")
+        raise
+
+    # XCom에 저장
+    context['ti'].xcom_push(key='clustering_silhouette', value=new_silhouette)
+    context['ti'].xcom_push(key='clustering_n_clusters', value=n_clusters)
+    context['ti'].xcom_push(key='clustering_result', value=result)
+
+
+def evaluate_clustering_model(**context):
+    """
+    Step 5-B: 클러스터링 모델 성능 비교 및 승격 결정
+
+    Returns:
+        'promote_clustering' or 'log_clustering_only'
+    """
+    ti = context['ti']
+    new_silhouette = ti.xcom_pull(key='clustering_silhouette', task_ids='run_clustering_training')
+
+    logging.info("=" * 80)
+    logging.info(f"📊 Step 5-B: Evaluating clustering model performance")
+    logging.info("=" * 80)
+
+    # 현재 Production 클러스터링 모델의 성능 조회
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+
+        mlflow.set_tracking_uri("sqlite:///mlflow_db/mlflow.db")
+        client = MlflowClient()
+
+        # Production 모델 조회
+        prod_versions = client.get_latest_versions("clustering_model", stages=["Production"])
+        if prod_versions:
+            prod_version = prod_versions[0]
+            current_silhouette = float(prod_version.tags.get('silhouette_score', 0))
+            logging.info(f"📌 Current Production Clustering Model:")
+            logging.info(f"   - Version: {prod_version.version}")
+            logging.info(f"   - Silhouette Score: {current_silhouette:.4f}")
+        else:
+            # Production 모델이 없으면 0으로 설정 (새 모델이 항상 승격됨)
+            current_silhouette = 0
+            logging.warning("⚠️  No Production clustering model found. New model will be promoted.")
+
+    except Exception as e:
+        logging.warning(f"⚠️  Failed to get current model: {e}")
+        current_silhouette = 0
+
+    # XCom에 저장
+    context['ti'].xcom_push(key='current_clustering_silhouette', value=current_silhouette)
+
+    improvement = new_silhouette - current_silhouette
+
+    logging.info(f"📈 Clustering Performance Comparison:")
+    logging.info(f"   - Current Silhouette: {current_silhouette:.4f}")
+    logging.info(f"   - New Silhouette:     {new_silhouette:.4f}")
+    logging.info(f"   - Improvement:        {improvement:+.4f}")
+
+    # 승격 기준: Silhouette Score가 개선되었거나, Production 모델이 없을 때
+    if new_silhouette > current_silhouette or current_silhouette == 0:
+        logging.info(f"✅ New clustering model is better!")
+        logging.info(f"   → Promoting to Production")
+        return 'promote_clustering'
+    else:
+        logging.warning(f"⚠️  New clustering model is not better")
+        logging.warning(f"   → Keeping current model in Production")
+        return 'log_clustering_only'
+
+
+def promote_clustering_to_production(**context):
+    """
+    Step 6-B: 클러스터링 모델 Production 승격
+    """
+    ti = context['ti']
+    clustering_result = ti.xcom_pull(key='clustering_result', task_ids='run_clustering_training')
+
+    logging.info("=" * 80)
+    logging.info(f"🚀 Step 6-B: Promoting clustering model to Production")
+    logging.info("=" * 80)
+
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+
+        mlflow.set_tracking_uri("sqlite:///mlflow_db/mlflow.db")
+        client = MlflowClient()
+
+        model_name = "clustering_model"
+
+        # 최신 모델 버전 가져오기 (방금 학습한 모델)
+        versions = client.search_model_versions(f"name='{model_name}'")
+        if not versions:
+            raise ValueError("No clustering model versions found")
+
+        latest_version = max(versions, key=lambda v: int(v.version))
+        version = latest_version.version
+
+        logging.info(f"📝 Promoting v{version} to Production...")
+
+        # 기존 Production 모델 Archive
+        try:
+            existing_prod = client.get_latest_versions(model_name, stages=["Production"])
+            for v in existing_prod:
+                if v.version != version:  # 방금 승격한 모델이 아닌 경우만
+                    client.transition_model_version_stage(
+                        name=model_name,
+                        version=v.version,
+                        stage="Archived"
+                    )
+                    logging.info(f"   📦 v{v.version} → Archived")
+        except Exception:
+            pass
+
+        # 새 버전을 Production으로
+        client.transition_model_version_stage(
+            name=model_name,
+            version=version,
+            stage="Production"
+        )
+        logging.info(f"   ✅ v{version} → Production")
+
+    except Exception as e:
+        logging.error(f"❌ Clustering promotion failed: {str(e)}")
+        raise
+
+    # API 서버에 클러스터링 모델 재로드 요청
+    logging.info("🔄 Reloading clustering model in API server...")
+    try:
+        response = requests.post(
+            'http://localhost:8000/api/v1/clustering/admin/reload-model',
+            timeout=30
+        )
+        if response.status_code == 200:
+            logging.info(f"✅ Clustering API reload successful: {response.json()}")
+        else:
+            logging.warning(f"⚠️  Clustering API reload returned status {response.status_code}")
+    except Exception as e:
+        logging.error(f"❌ Clustering API reload failed: {str(e)}")
+        logging.error("   → Please reload manually")
+
+
+def log_clustering_only(**context):
+    """
+    Step 6-B-Alt: 클러스터링 모델이 승격되지 않았을 때 로그만 남김
+    """
+    ti = context['ti']
+    clustering_result = ti.xcom_pull(key='clustering_result', task_ids='run_clustering_training')
+
+    logging.info("=" * 80)
+    logging.info(f"📝 Step 6-B-Alt: Logging clustering model without promotion")
+    logging.info("=" * 80)
+
+    logging.info(f"✅ Clustering training logged successfully")
+    logging.info(f"   - Silhouette Score: {clustering_result.get('silhouette_score', 'N/A')}")
+    logging.info(f"   - Clusters: {clustering_result.get('n_clusters', 'N/A')}")
+    logging.info(f"   → Current production model remains unchanged")
+
+
+def training_complete(**context):
+    """
+    모든 모델 학습 완료 후 실행되는 더미 태스크
+    """
+    logging.info("=" * 80)
+    logging.info("✅ All model training pipelines completed!")
+    logging.info("=" * 80)
+
+
+# ============================================================================
 # DAG Tasks
 # ============================================================================
 
@@ -486,37 +725,97 @@ extract_data = PythonOperator(
     dag=dag,
 )
 
-train_model = PythonOperator(
+# ============================================================================
+# 부도예측 모델 (Default Prediction) Tasks
+# ============================================================================
+train_default_model = PythonOperator(
     task_id='run_ml_training_pipeline',
     python_callable=run_ml_training_pipeline,
     dag=dag,
 )
 
-evaluate_model = BranchPythonOperator(
+evaluate_default_model = BranchPythonOperator(
     task_id='evaluate_and_compare',
     python_callable=evaluate_and_compare,
     dag=dag,
 )
 
-promote_model = PythonOperator(
+promote_default_model = PythonOperator(
     task_id='promote_to_production',
     python_callable=promote_to_production,
     dag=dag,
 )
 
-log_only = PythonOperator(
+log_default_only = PythonOperator(
     task_id='log_training_only',
     python_callable=log_training_only,
     dag=dag,
 )
 
+# ============================================================================
+# 클러스터링 모델 (Clustering) Tasks
+# ============================================================================
+train_clustering_model = PythonOperator(
+    task_id='run_clustering_training',
+    python_callable=run_clustering_training,
+    dag=dag,
+)
+
+evaluate_clustering = BranchPythonOperator(
+    task_id='evaluate_clustering_model',
+    python_callable=evaluate_clustering_model,
+    dag=dag,
+)
+
+promote_clustering = PythonOperator(
+    task_id='promote_clustering',
+    python_callable=promote_clustering_to_production,
+    dag=dag,
+)
+
+log_clustering = PythonOperator(
+    task_id='log_clustering_only',
+    python_callable=log_clustering_only,
+    dag=dag,
+)
+
+# ============================================================================
+# 공통 Tasks
+# ============================================================================
 skip = PythonOperator(
     task_id='skip_retraining',
     python_callable=skip_retraining,
     dag=dag,
 )
 
+# 모든 모델 학습 완료 후 실행되는 더미 태스크 (TriggerRule.ALL_DONE)
+complete = EmptyOperator(
+    task_id='training_complete',
+    dag=dag,
+    trigger_rule='none_failed_min_one_success',  # 하나 이상 성공하면 실행
+)
+
+# ============================================================================
 # Task 의존성
+# ============================================================================
+# 1. 드리프트 체크 → 재학습 여부 결정
 check_drift >> [determine_base_ym, skip]
-determine_base_ym >> extract_data >> train_model >> evaluate_model
-evaluate_model >> [promote_model, log_only]
+
+# 2. 데이터 추출 (부도예측용)
+determine_base_ym >> extract_data
+
+# 3. 두 모델 학습 (병렬 실행)
+#    - 부도예측 모델: extract_data 이후 실행
+#    - 클러스터링 모델: determine_base_ym 이후 바로 실행 (별도 데이터 사용)
+extract_data >> train_default_model
+determine_base_ym >> train_clustering_model
+
+# 4. 각 모델 평가 및 승격
+train_default_model >> evaluate_default_model
+evaluate_default_model >> [promote_default_model, log_default_only]
+
+train_clustering_model >> evaluate_clustering
+evaluate_clustering >> [promote_clustering, log_clustering]
+
+# 5. 모든 브랜치가 완료되면 complete 태스크 실행
+[promote_default_model, log_default_only, promote_clustering, log_clustering] >> complete

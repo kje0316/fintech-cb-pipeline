@@ -61,7 +61,7 @@ export default function ExcelUploadPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/api/v1/predict/upload/excel', {
+      const response = await fetch('http://localhost:8000/api/v1/predict/full-analysis', {
         method: 'POST',
         body: formData,
       });
@@ -74,10 +74,10 @@ export default function ExcelUploadPage() {
       const result = await response.json();
 
       // 결과를 localStorage에 저장
-      localStorage.setItem('predictionResult', JSON.stringify(result));
+      localStorage.setItem('analysisResult', JSON.stringify(result));
 
       // 결과 페이지로 이동
-      router.push('/predict/result');
+      router.push('/result');
     } catch (err: any) {
       console.error('Upload error:', err);
       setError(err.message || '업로드 중 오류가 발생했습니다.');
@@ -128,9 +128,9 @@ export default function ExcelUploadPage() {
             </svg>
             메인으로 돌아가기
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">엑셀 파일 업로드</h1>
+          <h1 className="text-3xl font-bold text-gray-900">AI 기업 재무 진단</h1>
           <p className="mt-2 text-gray-600">
-            재무 데이터가 포함된 엑셀 파일을 업로드하여 부도 위험을 분석하세요
+            재무 데이터를 업로드하여 부도 위험, 시장 내 위치, 협력사 추천을 한번에 받아보세요
           </p>
         </div>
 
@@ -254,26 +254,11 @@ export default function ExcelUploadPage() {
                   <span>분석 중...</span>
                 </div>
               ) : (
-                '부도 위험 분석 시작'
+                'AI 경영진단 시작'
               )}
             </button>
           </div>
 
-          {/* Info */}
-          <div className="mt-6 bg-gray-50 rounded-md p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">필수 입력 항목 (30개)</h4>
-            <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-              <div>• 재무상태표: 9개</div>
-              <div>• 손익계산서: 8개</div>
-              <div>• 현금흐름/기타: 7개</div>
-              <div>• 기업정보: 2개</div>
-              <div>• 연체정보: 6개</div>
-              <div></div>
-            </div>
-            <p className="mt-3 text-xs text-gray-500">
-              * 시스템이 자동으로 40개의 재무비율을 계산하여 총 70개 피처로 분석합니다
-            </p>
-          </div>
         </div>
 
         {/* Features */}
@@ -286,7 +271,7 @@ export default function ExcelUploadPage() {
               <h3 className="font-semibold text-gray-900">정확한 분석</h3>
             </div>
             <p className="text-sm text-gray-600">
-              30개 입력에서 70개 피처를 자동 생성하여 AUC-ROC 77% 이상의 높은 정확도로 예측
+              CatBoost 기반 머신러닝 모델과 SHAP 분석으로 부도 위험 요인을 정확히 파악합니다
             </p>
           </div>
 
@@ -298,7 +283,7 @@ export default function ExcelUploadPage() {
               <h3 className="font-semibold text-gray-900">빠른 처리</h3>
             </div>
             <p className="text-sm text-gray-600">
-              엑셀 파일 업로드 후 즉시 분석 결과 확인 가능
+              엑셀 파일 업로드 후 수 초 내에 AI 분석 결과를 즉시 확인할 수 있습니다
             </p>
           </div>
 
@@ -307,10 +292,10 @@ export default function ExcelUploadPage() {
               <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="font-semibold text-gray-900">상세한 분석</h3>
+              <h3 className="font-semibold text-gray-900">통합 분석</h3>
             </div>
             <p className="text-sm text-gray-600">
-              부도 확률, 위험도, SHAP 분석, 70개 클러스터링 피처, 5대 재무비율 제공
+              부도 예측, 클러스터 벤치마킹, 우량 협력사 추천까지 한번에 제공합니다
             </p>
           </div>
         </div>

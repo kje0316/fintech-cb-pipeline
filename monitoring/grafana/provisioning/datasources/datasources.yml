@@ -1,0 +1,27 @@
+# Grafana Data Sources Provisioning
+apiVersion: 1
+
+datasources:
+  # PostgreSQL - 로그 데이터 (logs 스키마)
+  - name: PostgreSQL-Logs
+    type: postgres
+    url: host.docker.internal:5432
+    database: fintech_cb_pipeline
+    user: kje
+    secureJsonData:
+      password: ""
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 1400
+      timescaledb: false
+    isDefault: true
+
+  # Prometheus - 애플리케이션 메트릭
+  - name: Prometheus
+    type: prometheus
+    url: http://prometheus:9090
+    access: proxy
+    isDefault: false

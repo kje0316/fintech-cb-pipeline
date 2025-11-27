@@ -311,6 +311,132 @@ class LoggingService:
                     user_agent, request_body_size, response_body_size
                 ))
 
+    def save_user_submission(
+        self,
+        input_data: Dict,
+        prediction_request_id: str,
+        default_probability: float,
+        risk_level: str,
+        cluster_id: Optional[int] = None,
+        cluster_name: Optional[str] = None
+    ) -> str:
+        """
+        유저 제출 데이터를 정규화된 테이블에 저장 (재학습용)
+
+        Args:
+            input_data: 37개 입력 딕셔너리
+            prediction_request_id: 예측 로그 ID
+            default_probability: 부도확률
+            risk_level: 위험도
+            cluster_id: 클러스터 ID
+            cluster_name: 클러스터명
+
+        Returns:
+            submission_id (UUID)
+        """
+        # 컬럼명 매핑 (한글/특수문자 → 영문)
+        column_mapping = {
+            'fn1_유형자산': 'fn1_5',
+            'fn1_매입채무': 'fn1_17',
+            'fn3_적립금': 'fn3_6',
+            'fn1_13_전기': 'fn1_13_prev',
+            'fn2_1_전기': 'fn2_1_prev',
+            'fn1_1_전기': 'fn1_1_prev',
+            'fn3_8_전기': 'fn3_8_prev',
+        }
+
+        # 입력 데이터 정규화
+        normalized = {}
+        for key, value in input_data.items():
+            # 매핑된 컬럼명 사용
+            col_name = column_mapping.get(key, key)
+            normalized[col_name] = value
+
+        with self.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO mart.user_submissions (
+                        prediction_request_id,
+                        fn1_13, fn1_1, fn1_4, fn1_11, fn1_19, fn1_24,
+                        fn1_14, fn1_15, fn1_16, fn1_5, fn1_17, fn3_6,
+                        fn2_1, fn2_2, fn2_2_1, fn2_3, fn2_5, fn2_5_1, fn2_10, fn2_10_1,
+                        fn3_1, fn3_2, fn3_7, fn3_8, fn3_11_1, fn2_4,
+                        fn1_13_prev, fn2_1_prev, fn1_1_prev, fn3_8_prev,
+                        empe_cnt, wg_gb,
+                        da0d00029, da0d00026, da0d00035_1, da0d00035_2,
+                        da0d00033_1, db0d00006, d2b000002,
+                        default_probability, risk_level, cluster_id, cluster_name
+                    ) VALUES (
+                        %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s, %s
+                    ) RETURNING submission_id
+                """, (
+                    prediction_request_id,
+                    normalized.get('fn1_13'), normalized.get('fn1_1'), normalized.get('fn1_4'),
+                    normalized.get('fn1_11'), normalized.get('fn1_19'), normalized.get('fn1_24'),
+                    normalized.get('fn1_14'), normalized.get('fn1_15'), normalized.get('fn1_16'),
+                    normalized.get('fn1_5'), normalized.get('fn1_17'), normalized.get('fn3_6'),
+                    normalized.get('fn2_1'), normalized.get('fn2_2'), normalized.get('fn2_2_1'),
+                    normalized.get('fn2_3'), normalized.get('fn2_5'), normalized.get('fn2_5_1'),
+                    normalized.get('fn2_10'), normalized.get('fn2_10_1'),
+                    normalized.get('fn3_1'), normalized.get('fn3_2'), normalized.get('fn3_7'),
+                    normalized.get('fn3_8'), normalized.get('fn3_11_1'), normalized.get('fn2_4'),
+                    normalized.get('fn1_13_prev'), normalized.get('fn2_1_prev'),
+                    normalized.get('fn1_1_prev'), normalized.get('fn3_8_prev'),
+                    normalized.get('empe_cnt'), normalized.get('wg_gb'),
+                    normalized.get('da0d00029'), normalized.get('da0d00026'),
+                    normalized.get('da0d00035_1'), normalized.get('da0d00035_2'),
+                    normalized.get('da0d00033_1'), normalized.get('db0d00006'),
+                    normalized.get('d2b000002'),
+                    default_probability, risk_level, cluster_id, cluster_name
+                ))
+
+                result = cur.fetchone()
+                return str(result[0])
+
+    def get_user_submissions_summary(self) -> Dict:
+        """유저 제출 현황 요약"""
+        with self.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT
+                        COUNT(*) as total_submissions,
+                        COUNT(DISTINCT DATE(created_at)) as active_days,
+                        AVG(default_probability) as avg_default_prob,
+                        COUNT(CASE WHEN risk_level = 'High' THEN 1 END) as high_risk_count,
+                        COUNT(CASE WHEN risk_level = 'Medium' THEN 1 END) as medium_risk_count,
+                        COUNT(CASE WHEN risk_level = 'Low' THEN 1 END) as low_risk_count,
+                        COUNT(CASE WHEN actual_default_yn IS NOT NULL THEN 1 END) as labeled_count
+                    FROM mart.user_submissions
+                """)
+                return dict(cur.fetchone())
+
+    def get_user_submissions_by_cluster(self) -> List[Dict]:
+        """클러스터별 유저 제출 현황"""
+        with self.get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT
+                        cluster_id,
+                        cluster_name,
+                        COUNT(*) as submission_count,
+                        AVG(default_probability) as avg_default_prob,
+                        AVG(fn2_1) as avg_revenue,
+                        AVG(fn1_13) as avg_total_assets
+                    FROM mart.user_submissions
+                    GROUP BY cluster_id, cluster_name
+                    ORDER BY submission_count DESC
+                """)
+                return [dict(row) for row in cur.fetchall()]
+
 
 # Singleton 인스턴스
 _logging_service_instance = None

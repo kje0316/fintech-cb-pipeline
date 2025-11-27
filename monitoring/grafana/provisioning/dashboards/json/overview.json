@@ -1,0 +1,198 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [
+    {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "API 상세", "tooltip": "", "type": "link", "url": "/d/api-monitoring"},
+    {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "예측 상세", "tooltip": "", "type": "link", "url": "/d/prediction-monitoring"},
+    {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "업로드 상세", "tooltip": "", "type": "link", "url": "/d/upload-monitoring"},
+    {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "모델 성능", "tooltip": "", "type": "link", "url": "/d/model-performance"}
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": {"h": 2, "w": 24, "x": 0, "y": 0},
+      "id": 0,
+      "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "# Fintech CB Pipeline - 모니터링 개요\n4가지 로그 타입에 대한 핵심 지표를 한눈에 확인합니다. 상세 정보는 상단 링크를 통해 각 대시보드로 이동하세요.", "mode": "markdown"},
+      "type": "text"
+    },
+    {
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 2},
+      "id": 1,
+      "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "## API 로그", "mode": "markdown"},
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 3},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT COUNT(*) FROM logs.api_logs WHERE created_at > NOW() - INTERVAL '24 hours'", "refId": "A"}],
+      "title": "API 요청 (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}, "unit": "percent"}},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 3},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT ROUND(100.0 * COUNT(CASE WHEN status_code >= 400 THEN 1 END) / NULLIF(COUNT(*), 0), 2) FROM logs.api_logs WHERE created_at > NOW() - INTERVAL '1 hour'", "refId": "A"}],
+      "title": "에러율 (1h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 200}, {"color": "red", "value": 500}]}, "unit": "ms"}},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 3},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT ROUND(AVG(response_time_ms), 1) FROM logs.api_logs WHERE created_at > NOW() - INTERVAL '1 hour'", "refId": "A"}],
+      "title": "평균 응답시간 (1h)",
+      "type": "stat"
+    },
+    {
+      "gridPos": {"h": 1, "w": 12, "x": 12, "y": 2},
+      "id": 5,
+      "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "## 예측 로그", "mode": "markdown"},
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "purple", "value": null}]}}},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 3},
+      "id": 6,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT COUNT(*) FROM logs.prediction_logs WHERE created_at > NOW() - INTERVAL '24 hours'", "refId": "A"}],
+      "title": "예측 수 (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 100}, {"color": "red", "value": 200}]}, "unit": "ms"}},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 3},
+      "id": 7,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT ROUND(AVG(inference_time_ms), 1) FROM logs.prediction_logs WHERE created_at > NOW() - INTERVAL '1 hour'", "refId": "A"}],
+      "title": "추론 시간 (1h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "percent"}},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 3},
+      "id": 8,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT ROUND(AVG(default_probability) * 100, 2) FROM logs.prediction_logs WHERE created_at > NOW() - INTERVAL '24 hours'", "refId": "A"}],
+      "title": "평균 부도확률 (24h)",
+      "type": "stat"
+    },
+    {
+      "gridPos": {"h": 1, "w": 12, "x": 0, "y": 7},
+      "id": 9,
+      "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "## 업로드 로그", "mode": "markdown"},
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}}},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 8},
+      "id": 10,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT COUNT(*) FROM logs.upload_logs WHERE created_at > NOW() - INTERVAL '24 hours'", "refId": "A"}],
+      "title": "업로드 수 (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 5}, {"color": "red", "value": 10}]}, "unit": "percent"}},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 8},
+      "id": 11,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT ROUND(100.0 * COUNT(CASE WHEN status = 'failed' THEN 1 END) / NULLIF(COUNT(*), 0), 2) FROM logs.upload_logs WHERE created_at > NOW() - INTERVAL '24 hours'", "refId": "A"}],
+      "title": "업로드 실패율 (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "cyan", "value": null}]}}},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 8},
+      "id": 12,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT COALESCE(SUM(rows_processed), 0) FROM logs.upload_logs WHERE created_at > NOW() - INTERVAL '24 hours'", "refId": "A"}],
+      "title": "처리된 행 수 (24h)",
+      "type": "stat"
+    },
+    {
+      "gridPos": {"h": 1, "w": 12, "x": 12, "y": 7},
+      "id": 13,
+      "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "## 모델 성능", "mode": "markdown"},
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.7}, {"color": "green", "value": 0.8}]}}},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 8},
+      "id": 14,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT COALESCE(auc_roc, 0) FROM logs.model_performance_logs ORDER BY logged_at DESC LIMIT 1", "refId": "A"}],
+      "title": "최신 AUC-ROC",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.1}, {"color": "red", "value": 0.2}]}}},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 8},
+      "id": 15,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT COALESCE(psi_score, 0) FROM logs.model_performance_logs ORDER BY logged_at DESC LIMIT 1", "refId": "A"}],
+      "title": "최신 PSI (Drift)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 8},
+      "id": 16,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "table", "rawSql": "SELECT COALESCE(model_version, 'N/A') FROM logs.model_performance_logs ORDER BY logged_at DESC LIMIT 1", "refId": "A"}],
+      "title": "현재 모델 버전",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "id": 17,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "time_series", "rawSql": "SELECT\n  date_trunc('hour', created_at) AS time,\n  COUNT(*) AS api_requests\nFROM logs.api_logs\nWHERE $__timeFilter(created_at)\nGROUP BY 1\nORDER BY 1", "refId": "A"}],
+      "title": "API 요청 추이",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "id": 18,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"datasource": {"type": "postgres", "uid": "PostgreSQL-Logs"}, "format": "time_series", "rawSql": "SELECT\n  date_trunc('hour', created_at) AS time,\n  COUNT(*) AS predictions\nFROM logs.prediction_logs\nWHERE $__timeFilter(created_at)\nGROUP BY 1\nORDER BY 1", "refId": "A"}],
+      "title": "예측 요청 추이",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["overview", "monitoring"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Fintech CB Pipeline - 종합 모니터링",
+  "uid": "overview",
+  "version": 1,
+  "weekStart": ""
+}

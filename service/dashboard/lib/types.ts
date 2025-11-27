@@ -130,6 +130,89 @@ export interface PredictionRequest {
   bs_dt?: string;
 }
 
+// Full Analysis API Types
+
+export interface BenchmarkMetric {
+  name: string;
+  key: string;
+  company_value: number;
+  cluster_avg: number;
+  percentile: number;
+  comparison: 'above' | 'below' | 'average';
+  unit: string;
+}
+
+export interface RadarDataPoint {
+  metric: string;
+  company: number;
+  cluster_avg: number;
+}
+
+export interface ClusterPrediction {
+  success: boolean;
+  cluster_id: number;
+  cluster_name: string;
+  cluster_description: string;
+  method?: string;
+}
+
+export interface ClusterBenchmark {
+  cluster_id: number;
+  cluster_name: string;
+  metrics: BenchmarkMetric[];
+  radar_data: RadarDataPoint[];
+  summary: string;
+}
+
+export interface PartnerCompany {
+  company_id: string;
+  company_name: string;
+  default_probability: number;
+  risk_level: string;
+  industry: string;
+  similarity_score: number;
+  key_strengths: string[];
+}
+
+// 업종 대비 벤치마크
+export interface IndustryBenchmarkMetric {
+  name: string;
+  key: string;
+  company_value: number;
+  industry_avg: number;
+  percentile: number;
+  unit: string;
+}
+
+export interface IndustryBenchmark {
+  industry_code: string;
+  industry_name: string;
+  metrics: IndustryBenchmarkMetric[];
+  percentile_rank: number;
+  summary: string;
+}
+
+// 진단 리포트
+export interface DiagnosisReport {
+  report_text: string;
+  risk_interpretation: string;
+  radar_chart?: string;  // base64 이미지
+}
+
+export interface FullAnalysisResponse {
+  success: boolean;
+  default_prediction: DefaultPrediction;
+  shap_values: ShapExplanation | null;
+  clustering: ClusterPrediction;
+  benchmark: ClusterBenchmark;
+  industry_benchmark?: IndustryBenchmark;  // 신규
+  diagnosis?: DiagnosisReport;  // 신규
+  partners: PartnerCompany[];
+  clustering_features?: Record<string, number>;
+  derived_ratios?: Record<string, number>;
+  message?: string;
+}
+
 // Lightweight Prediction Request (13개 필수 입력)
 export interface LightweightPredictionRequest {
   // 연체 정보 (7개)

@@ -19,7 +19,7 @@ export default function IndustryRiskRadarChart({ data }: IndustryRiskRadarProps)
   );
 
   // 레이더 차트 데이터 변환
-  const radarData = [
+  const radarData: Array<{ subject: string; fullMark: number; [key: string]: string | number }> = [
     { subject: '신용건전성', fullMark: 100 },
     { subject: '부도위험도', fullMark: 100 },
     { subject: '시장점유율', fullMark: 100 },
